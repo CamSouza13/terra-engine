@@ -100,6 +100,9 @@ for t, level, msg in res.events:
 only the channels that reported. To adapt to your rig, edit the domain's
 `build_spec()` (channels, noise, safety limits) or write a new `SystemSpec`.
 
+For a plain-language, code-included tour of the engine and all four domains, see
+[`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md).
+
 ## How it works
 
 - **Estimator:** a compact Unscented Kalman Filter (`terra/ukf.py`), NumPy only,
