@@ -16,7 +16,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from terra import TerraEngine, EngineConfig
+from terra import TerraEngine, EngineConfig, Controller, policy_for
 from terra.domains import DOMAINS
 
 CFG = {
@@ -119,20 +119,24 @@ def _downsample(n, target=90):
     return list(np.linspace(0, n - 1, target).astype(int))
 
 
-def collect(name, fault):
-    mod = DOMAINS[name]
-    spec, sim = mod.simulate(fault=fault)
+def _run_engine(name, spec, sim, uf_after=None, t_act=None):
     eng = TerraEngine(spec, CFG[name])
-    t = sim["t"]; dt = t[1] - t[0]; uf = sim.get("u_forecast")
-    m = META[name]
-    hi = spec.idx(m["hidden"]); si = m["sensor_state"]; ch = m["sensor_channel"]
-    rk = m["risk"]
+    t = sim["t"]; dt = t[1] - t[0]; base_uf = sim.get("u_forecast")
     hist = []
     for i in range(len(t)):
+        uf = base_uf
+        if uf_after is not None and t_act is not None and t[i] >= t_act:
+            uf = uf_after
         hist.append(eng.step(t[i], dt, sim["meas"][i], sim["u"][i], u_forecast=uf))
-    idx = _downsample(len(t))
+    return eng, hist
+
+
+def _series(spec, sim, hist, m):
+    t = sim["t"]; idx = _downsample(len(t))
+    hi = spec.idx(m["hidden"]); si = m["sensor_state"]; ch = m["sensor_channel"]
+    rk = m["risk"]
     r = lambda a, d=3: round(float(a), d)
-    data = {
+    return {
         "t": [r(t[i], 2) for i in idx],
         "hidden_true": [r(sim["truth"][i, hi]) for i in idx],
         "hidden_est": [r(hist[i].hidden) for i in idx],
@@ -141,10 +145,65 @@ def collect(name, fault):
         "sensor_true": [r(sim["truth"][i, si]) for i in idx],
         "sensor_est": [r(hist[i].x[si]) for i in idx],
         "forecast_p": [r(hist[i].risks.get(rk, {}).get("p", 0.0), 3) for i in idx],
-        "events": [{"t": r(et, 1), "level": lv, "msg": msg}
-                   for et, lv, msg in eng.events],
     }
+
+
+def collect(name, fault):
+    mod = DOMAINS[name]
+    spec, sim = mod.simulate(fault=fault)
+    eng, hist = _run_engine(name, spec, sim)
+    data = _series(spec, sim, hist, META[name])
+    data["events"] = [{"t": round(float(et), 1), "level": lv, "msg": msg}
+                      for et, lv, msg in eng.events]
     return spec, data
+
+
+def collect_auto(name):
+    """Closed-loop: controller triggers at the forecast breach and (authorized)
+    enacts a corrective action, escalating strength until the loop is safe."""
+    mod = DOMAINS[name]; m = META[name]; risk = m["risk"]
+    # pass 1 — find the first trigger and the controller's recommendation
+    spec, sim = mod.simulate(fault=True)
+    eng = TerraEngine(spec, CFG[name])
+    ctl = Controller(spec, CFG[name], policy_for(name), authorized=True)
+    t = sim["t"]; dt = t[1] - t[0]; uf = sim.get("u_forecast")
+    t_act = base_u = rec = None
+    for i in range(len(t)):
+        est = eng.step(t[i], dt, sim["meas"][i], sim["u"][i], u_forecast=uf)
+        r = ctl.recommend(est, sim["u"][i])
+        if r is not None:
+            t_act, base_u, rec = t[i], sim["u"][i], r
+            break
+    if t_act is None:
+        return collect(name, True)[1]
+    # pass 2 — enact, escalating the lever until the recovered run ends safe
+    act = policy_for(name).actuators[0]
+    chosen = None
+    for lv in act.levels:
+        iu = act.make_u(base_u, lv)
+        s2, sim2 = mod.simulate(fault=True, intervene_t=t_act, intervene_u=iu)
+        uf_after = iu if name == "aquaculture" else None
+        eng2, hist2 = _run_engine(name, s2, sim2, uf_after=uf_after, t_act=t_act)
+        end_p = hist2[-1].risks.get(risk, {}).get("p", 1.0)
+        chosen = (lv, s2, sim2, eng2, hist2)
+        if end_p <= 0.12:
+            break
+    lv, s2, sim2, eng2, hist2 = chosen
+    data = _series(s2, sim2, hist2, m)
+    evs = [{"t": round(float(et), 1), "level": l2, "msg": msg}
+           for et, l2, msg in eng2.events]
+    evs.append({"t": round(float(t_act), 1), "level": "ACT",
+                "msg": f"Enacted: {rec.actuator} ({act.fmt(lv)}) · autonomy authorized "
+                       f"· forecast risk {rec.p_before:.2f} → falling."})
+    res = next((data["t"][j] for j in range(len(data["t"]))
+                if data["t"][j] > t_act and data["forecast_p"][j] < 0.1), None)
+    if res is not None:
+        evs.append({"t": round(float(res), 1), "level": "OK",
+                    "msg": "Forecast risk resolved · loop back in band · budget re-closing."})
+    evs.sort(key=lambda e: e["t"])
+    data["events"] = evs
+    data["action"] = f"{rec.actuator} · {act.fmt(lv)}"
+    return data
 
 
 def build_data():
@@ -152,9 +211,10 @@ def build_data():
     for name in ORDER:
         spec, fault = collect(name, True)
         _, healthy = collect(name, False)
+        auto = collect_auto(name)
         m = META[name]
         risk = next((s for s in spec.safety if s.name == m["risk"]), None)
-        out["runs"][name] = {"fault": fault, "healthy": healthy}
+        out["runs"][name] = {"fault": fault, "healthy": healthy, "auto": auto}
         out["meta"][name] = {
             **{k: m[k] for k in (
                 "num", "title_a", "title_b", "kit", "node", "hidden_label",
@@ -198,6 +258,7 @@ def domain_section(name, meta):
           <div class="seg">
             <button class="seg-btn" data-mode="healthy">Healthy</button>
             <button class="seg-btn active" data-mode="fault">Fault</button>
+            <button class="seg-btn" data-mode="auto">Autonomous</button>
           </div>
           <button class="playbtn" data-act="play">❚❚ Pause</button>
           <input class="scrub" type="range" min="0" max="100" value="0">
@@ -216,6 +277,7 @@ def domain_section(name, meta):
           <canvas class="c-forecast" height="96"></canvas>
         </div>
         <div class="eventlog"></div>
+        <div class="panelfoot">◇ Edge stage · recursive Bayesian state estimation (unscented transform) running fitted models on-device</div>
       </div>
     </div>
   </section>'''
@@ -246,7 +308,7 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .navlinks{display:flex;gap:22px;font-family:var(--mono);font-size:12px;
   letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .navlinks a:hover{color:var(--ink)}
-.navlinks a.active{color:var(--green)}
+.navlinks a.active{color:var(--ink)}
 .navcta{border:1px solid var(--line);padding:8px 14px;border-radius:2px;
   font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
 .navcta:hover{background:#fff;color:#000}
@@ -256,12 +318,12 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .hero{padding:96px 0 60px;border-bottom:1px solid var(--line2)}
 .hero h1{font-size:clamp(34px,6vw,68px);line-height:1.02;letter-spacing:-.02em;
   font-weight:600;margin:18px 0 20px;max-width:16ch}
-.hero h1 em{font-style:italic;color:var(--green);font-weight:500}
+.hero h1 em{font-style:italic;color:var(--ink);font-weight:500;opacity:.9}
 .hero p{color:var(--muted);font-size:18px;max-width:60ch}
 .herocta{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 20px;border-radius:2px;
   font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-.btn-p{background:var(--green);color:#04150b;font-weight:600}
+.btn-p{background:var(--ink);color:#000;font-weight:600}
 .btn-p:hover{filter:brightness(1.08)}
 .btn-o{border:1px solid var(--line);color:var(--ink)}
 .btn-o:hover{background:#fff;color:#000}
@@ -275,14 +337,14 @@ section.blk{padding:70px 0;border-bottom:1px solid var(--line2)}
 .snum{font-family:var(--mono);font-size:12px;letter-spacing:.18em;
   text-transform:uppercase;color:var(--muted);margin-bottom:18px}
 h2{font-size:clamp(26px,4vw,40px);letter-spacing:-.015em;font-weight:600;margin:0 0 14px;max-width:20ch}
-h2 em{font-style:italic;color:var(--green);font-weight:500}
+h2 em{font-style:italic;color:var(--ink);font-weight:500;opacity:.9}
 .lead{color:var(--muted);max-width:70ch;font-size:16px}
 
 /* engine steps */
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:34px;
   background:var(--line2);border:1px solid var(--line2)}
 .step{background:var(--bg);padding:22px}
-.step .n{font-family:var(--mono);color:var(--green);font-size:12px}
+.step .n{font-family:var(--mono);color:var(--muted);font-size:12px}
 .step h3{font-size:15px;margin:10px 0 8px;font-weight:600}
 .step p{color:var(--muted);font-size:13.5px;margin:0}
 .step .eq{font-family:var(--mono);font-size:12px;color:var(--blue);margin-top:12px;
@@ -293,7 +355,7 @@ h2 em{font-style:italic;color:var(--green);font-weight:500}
 /* domain */
 .domain{padding:64px 0;border-bottom:1px solid var(--line2)}
 .dhead{font-size:clamp(24px,3.4vw,34px);font-weight:600;letter-spacing:-.01em;margin-bottom:26px}
-.dhead em{font-style:italic;color:var(--green);font-weight:500}
+.dhead em{font-style:italic;color:var(--ink);font-weight:500;opacity:.9}
 .dnum{font-family:var(--mono);font-size:13px;color:var(--muted);vertical-align:middle;margin-right:8px}
 .dgrid{display:grid;grid-template-columns:0.92fr 1.08fr;gap:36px;align-items:start}
 @media(max-width:940px){.dgrid{grid-template-columns:1fr}}
@@ -312,11 +374,11 @@ h2 em{font-style:italic;color:var(--green);font-weight:500}
 .panel-top{display:flex;align-items:center;justify-content:space-between;
   padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
 .pt-title{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--muted)}
-.live{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--green);
+.live{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:var(--muted);
   display:flex;align-items:center;gap:7px}
-.live .dot{width:7px;height:7px;border-radius:50%;background:var(--green);
-  box-shadow:0 0 0 0 rgba(127,220,164,.6);animation:pulse 1.8s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(127,220,164,.5)}70%{box-shadow:0 0 0 7px rgba(127,220,164,0)}100%{box-shadow:0 0 0 0 rgba(127,220,164,0)}}
+.live .dot{width:7px;height:7px;border-radius:50%;background:var(--ink);
+  box-shadow:0 0 0 0 rgba(255,255,255,.5);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,.45)}70%{box-shadow:0 0 0 7px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
 .panel-controls{display:flex;align-items:center;gap:12px;padding:12px 16px;
   border-bottom:1px solid var(--line2);flex-wrap:wrap}
 .seg{display:flex;border:1px solid var(--line);border-radius:2px;overflow:hidden}
@@ -326,7 +388,7 @@ h2 em{font-style:italic;color:var(--green);font-weight:500}
 .playbtn{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:2px;
   padding:7px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;min-width:92px}
 .playbtn:hover{border-color:var(--muted)}
-.scrub{flex:1;min-width:120px;accent-color:var(--green)}
+.scrub{flex:1;min-width:120px;accent-color:var(--ink)}
 .tread{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:56px;text-align:right}
 .chart-wrap{padding:14px 16px 6px}
 .chart-label{display:flex;justify-content:space-between;font-family:var(--mono);
@@ -338,16 +400,19 @@ canvas{width:100%;display:block}
 .ev{display:flex;gap:10px;padding:4px 0;color:var(--muted)}
 .ev .et{color:var(--faint);min-width:52px}
 .ev.WARN .el{color:var(--amber)} .ev.ALERT .el{color:var(--red)} .ev.INFO .el{color:var(--blue)}
+.ev.ACT .el{color:var(--ink)} .ev.ACT .em{color:var(--ink)} .ev.OK .el{color:var(--blue)}
 .ev .el{min-width:46px;text-transform:uppercase;font-size:10.5px;letter-spacing:.06em}
 .ev .em{color:var(--ink);flex:1}
 .ev.new{animation:flash .8s}
-@keyframes flash{from{background:rgba(127,220,164,.12)}to{background:transparent}}
+@keyframes flash{from{background:rgba(255,255,255,.09)}to{background:transparent}}
+.panelfoot{padding:11px 16px;border-top:1px solid var(--line2);font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.05em;color:var(--faint);background:var(--panel2)}
 
 /* verify */
 .vgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:30px;
   background:var(--line2);border:1px solid var(--line2)}
 .vcell{background:var(--bg);padding:22px}
-.vcell .vk{font-family:var(--mono);font-size:24px;color:var(--green)}
+.vcell .vk{font-family:var(--mono);font-size:24px;color:var(--ink)}
 .vcell .vl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--faint);margin-top:8px}
 @media(max-width:900px){.vgrid{grid-template-columns:1fr 1fr}}
@@ -397,7 +462,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <header class="hero"><div class="wrap">
   <div class="eyebrow">Live Simulation · The interactive twin</div>
   <h1>Watch the engine <em>hold the loop.</em></h1>
-  <p>The same Bayesian inference core, running four closed biogeochemical loops. Each one recovers a hidden state it can never measure, closes the mass budget, and forecasts the failure before any single gauge crosses a threshold. Every curve below is real, verified engine output — not an animation of a script.</p>
+  <p>The same Bayesian inference core, running four closed biogeochemical loops. Each one recovers a hidden state it can never measure, closes the mass budget, and forecasts the failure before any single gauge crosses a threshold. Toggle a loop to <b>Autonomous</b> and the engine's controller enacts a corrective action — you watch the forecast fall and the loop recover. Every curve is real, verified engine output — not an animation of a script.</p>
   <div class="herocta">
     <a class="btn btn-p" href="#dom-aquaculture">Run the simulations ↓</a>
     <a class="btn btn-o" href="index.html#contact">Get in touch</a>
@@ -420,7 +485,9 @@ TEMPLATE = r"""<!DOCTYPE html>
     <div class="step"><div class="n">/03</div><h3>Correct</h3><p>Blend in the sensors that reported. Surprise × trust = the nudge.</p><div class="eq">x ← x̄ + K(z − h(x̄))</div></div>
     <div class="step"><div class="n">/04</div><h3>Forecast</h3><p>Sample the posterior, fast-forward, count the futures that breach.</p><div class="eq">P(breach) = 𝔼[𝟙 g(x_t) > limit]</div></div>
   </div>
+  <p class="disc">◇ Two stages, one pipeline. <b>Offline</b>, Hamiltonian Monte Carlo (HMC/NUTS · JAX / NumPyro) fits and validates the process models against real biogeochemical data. <b>Online</b>, the recursive edge estimator shown on this page runs those fitted models live on Raspberry-Pi-class hardware — state and forecast in milliseconds, no network. This page is the edge stage.</p>
   <p class="disc">◇ Sensors are optional per cycle — drop a probe and the filter leans on the model and the remaining channels. The hidden "health" state (biofilter efficiency, microbial activity, crop capacity) is inferred from the mismatch, never measured directly.</p>
+  <p class="disc">◇ Perception is not action. The engine estimates and forecasts; a separate controller decides the corrective move — water exchange, fertigation, donor dosing, life-support backup — and, <b>only when an operator has authorized autonomy</b>, enacts it. It recommends by default. Switch a loop below to Autonomous to watch it recommend, act, and recover.</p>
 </div></div></section>
 
 <div class="wrap">
@@ -492,7 +559,7 @@ function drawSeries(cv, series, opts){
     ctx.fillText((Math.abs(yv)>=100?yv.toFixed(0):yv.toFixed(ymax<3?2:1)), 2, y+3); }
   // uncertainty band
   if(opts.band){
-    ctx.fillStyle='rgba(127,220,164,.13)'; ctx.beginPath();
+    ctx.fillStyle='rgba(121,183,230,.15)'; ctx.beginPath();
     for(let i=0;i<=k;i++){ const v=opts.band.mid[i]+opts.band.sd[i]; ctx.lineTo(X(i),Y(v)); }
     for(let i=k;i>=0;i--){ const v=opts.band.mid[i]-opts.band.sd[i]; ctx.lineTo(X(i),Y(v)); }
     ctx.closePath(); ctx.fill();
@@ -544,7 +611,7 @@ function initPanel(panel){
     drawSeries(cH, series, {k, ymin:0, ymax:Math.max(1.2, meta.hidden_baseline*1.25),
       band:{mid:run.hidden_est, sd:run.hidden_std},
       thresh:meta.hidden_alert,
-      lines:[{data:run.hidden_true,color:COL.muted,w:1.3},{data:run.hidden_est,color:COL.green,w:2}]});
+      lines:[{data:run.hidden_true,color:COL.muted,w:1.3},{data:run.hidden_est,color:COL.blue,w:2}]});
     drawSeries(cS, series, {k, dots:run.sensor_raw,
       lines:[{data:run.sensor_true,color:COL.muted,w:1.2},{data:run.sensor_est,color:COL.amber,w:2}]});
     drawSeries(cF, series, {k, ymin:0, ymax:1, fill:true, thresh:0.3,

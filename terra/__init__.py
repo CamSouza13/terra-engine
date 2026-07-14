@@ -20,16 +20,19 @@ from .core import (
     SafetyTarget,
     Estimate,
     simulate_truth,
+    mc_forecast,
     rk4,
     rk4_batch,
 )
 from .ukf import UnscentedKalmanFilter
+from .control import Controller, ControlPolicy, Actuator, Recommendation, policy_for
 from . import domains
 
 __all__ = [
     "TerraEngine", "EngineConfig", "SystemSpec", "Channel", "SafetyTarget",
-    "Estimate", "simulate_truth", "rk4", "rk4_batch",
+    "Estimate", "simulate_truth", "mc_forecast", "rk4", "rk4_batch",
     "UnscentedKalmanFilter", "domains",
+    "Controller", "ControlPolicy", "Actuator", "Recommendation", "policy_for",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

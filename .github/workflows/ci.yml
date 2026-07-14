@@ -32,5 +32,8 @@ jobs:
       - name: Run ingestion tests
         run: python tests/test_ingest.py
 
+      - name: Run controller tests
+        run: python tests/test_control.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot

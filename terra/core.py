@@ -193,42 +193,7 @@ class TerraEngine:
         return est
 
     def _forecast(self, x, P, u) -> dict[str, dict]:
-        if not self.spec.safety:
-            return {}
-        H, n = self.cfg.forecast_horizon_h, self.cfg.forecast_samples
-        dt = self.cfg.forecast_dt
-        try:
-            X = self._rng.multivariate_normal(x, P, size=n)
-        except np.linalg.LinAlgError:
-            X = x + self._rng.normal(size=(n, len(x))) * np.sqrt(np.diag(P))
-        if self.spec.nonneg is not None:
-            X[:, self.spec.nonneg] = np.clip(X[:, self.spec.nonneg], 0.0, None)
-
-        steps = int(round(H / dt))
-        crossed = {s.name: np.zeros(n, bool) for s in self.spec.safety}
-        ctime = {s.name: np.full(n, np.nan) for s in self.spec.safety}
-        for k in range(1, steps + 1):
-            X = rk4_batch(X, dt, self.spec.deriv_batch, u, self.spec.params,
-                          self.spec.nonneg)
-            for s in self.spec.safety:
-                lv = s.value(X.T, self.spec.params, self.spec.env)  # vectorized
-                hit = (lv > s.limit) if s.direction == ">" else (lv < s.limit)
-                newly = (~crossed[s.name]) & hit
-                ctime[s.name][newly] = k * dt
-                crossed[s.name] |= hit
-        out = {}
-        for s in self.spec.safety:
-            c = crossed[s.name]
-            level = float(s.value(x[:, None], self.spec.params, self.spec.env)[0])
-            out[s.name] = {
-                "p": float(c.mean()),
-                "t_cross": float(np.nanmean(ctime[s.name])) if c.any() else None,
-                "level": level,
-                "limit": s.limit,
-                "direction": s.direction,
-                "units": s.units,
-            }
-        return out
+        return mc_forecast(self.spec, self.cfg, self._rng, x, P, u)
 
     def _log(self, e: Estimate) -> None:
         s = self.spec
@@ -267,6 +232,46 @@ class TerraEngine:
                 (e.t, "INFO",
                  f"model/measurement consistency degraded "
                  f"(NIS/dof {e.nis/dof:.1f}); state posterior re-weighting."))
+
+
+# ---- Monte-Carlo forecast (shared by the engine and the controller) ----------
+
+def mc_forecast(spec: SystemSpec, cfg: "EngineConfig", rng, x, P, u) -> dict[str, dict]:
+    """Propagate the posterior forward under input `u`; return per-target breach
+    probability, expected crossing time, and current level. Pure in `rng`, so a
+    controller can evaluate candidate actions with its own generator without
+    disturbing the live filter."""
+    if not spec.safety:
+        return {}
+    H, n, dt = cfg.forecast_horizon_h, cfg.forecast_samples, cfg.forecast_dt
+    try:
+        X = rng.multivariate_normal(x, P, size=n)
+    except np.linalg.LinAlgError:
+        X = x + rng.normal(size=(n, len(x))) * np.sqrt(np.diag(P))
+    if spec.nonneg is not None:
+        X[:, spec.nonneg] = np.clip(X[:, spec.nonneg], 0.0, None)
+
+    steps = int(round(H / dt))
+    crossed = {s.name: np.zeros(n, bool) for s in spec.safety}
+    ctime = {s.name: np.full(n, np.nan) for s in spec.safety}
+    for k in range(1, steps + 1):
+        X = rk4_batch(X, dt, spec.deriv_batch, u, spec.params, spec.nonneg)
+        for s in spec.safety:
+            lv = s.value(X.T, spec.params, spec.env)
+            hit = (lv > s.limit) if s.direction == ">" else (lv < s.limit)
+            newly = (~crossed[s.name]) & hit
+            ctime[s.name][newly] = k * dt
+            crossed[s.name] |= hit
+    out = {}
+    for s in spec.safety:
+        c = crossed[s.name]
+        out[s.name] = {
+            "p": float(c.mean()),
+            "t_cross": float(np.nanmean(ctime[s.name])) if c.any() else None,
+            "level": float(s.value(x[:, None], spec.params, spec.env)[0]),
+            "limit": s.limit, "direction": s.direction, "units": s.units,
+        }
+    return out
 
 
 # ---- shared simulator: ground truth + noisy, optionally-missing sensors -------

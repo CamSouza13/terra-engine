@@ -25,27 +25,37 @@ class BLSSParams:
     leak: float = 0.02         # cabin exchange /h
     CO2_amb: float = 400.0
     O2_amb: float = 20.9
+    scrub_cap: float = 260.0   # backup CO2 scrubber capacity, ppm/h at full
+    o2_cap: float = 0.28       # backup O2 makeup capacity, %/h at full
+
+
+def _unpack(u):
+    """u = light  or  (light, backup). backup in [0,1] engages the
+    physico-chemical life-support backup (CO2 scrubber + O2 makeup)."""
+    if hasattr(u, "__len__"):
+        return u[0], (u[1] if len(u) > 1 else 0.0)
+    return u, 0.0
 
 
 def deriv(x, u, p: BLSSParams):
     CO2, O2, act = x
     CO2 = max(CO2, 0.0); act = max(act, 0.0)
-    light = u
+    light, backup = _unpack(u)
     photo = act * p.Pmax * light * CO2 / (p.Kco2 + CO2)
     return np.array([
-        p.crew_co2 - photo + p.leak * (p.CO2_amb - CO2),
-        -p.crew_o2 + p.k_o2 * photo + p.leak * (p.O2_amb - O2),
+        p.crew_co2 - photo + p.leak * (p.CO2_amb - CO2) - backup * p.scrub_cap,
+        -p.crew_o2 + p.k_o2 * photo + p.leak * (p.O2_amb - O2) + backup * p.o2_cap,
         0.0,
     ])
 
 
 def deriv_batch(X, u, p: BLSSParams):
     CO2 = np.clip(X[:, 0], 0, None); O2 = X[:, 1]; act = np.clip(X[:, 2], 0, None)
-    light = u
+    light, backup = _unpack(u)
     photo = act * p.Pmax * light * CO2 / (p.Kco2 + CO2)
     d = np.empty_like(X)
-    d[:, 0] = p.crew_co2 - photo + p.leak * (p.CO2_amb - CO2)
-    d[:, 1] = -p.crew_o2 + p.k_o2 * photo + p.leak * (p.O2_amb - O2)
+    d[:, 0] = p.crew_co2 - photo + p.leak * (p.CO2_amb - CO2) - backup * p.scrub_cap
+    d[:, 1] = -p.crew_o2 + p.k_o2 * photo + p.leak * (p.O2_amb - O2) + backup * p.o2_cap
     d[:, 2] = 0.0
     return d
 
@@ -74,12 +84,15 @@ def build_spec() -> SystemSpec:
     )
 
 
-def simulate(hours=48.0, seed=3, available=None, fault=True):
+def simulate(hours=48.0, seed=3, available=None, fault=True,
+             intervene_t=None, intervene_u=None):
     spec = build_spec()
     dt = 1.0 / 60.0
 
     def u_of_t(t):
-        return 1.0                        # continuous LED light
+        if intervene_t is not None and t >= intervene_t:
+            return intervene_u            # controller action: engage LS backup
+        return (1.0, 0.0)                 # continuous LED light, backup off
 
     def hidden_of_t(t):
         if not fault:

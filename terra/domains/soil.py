@@ -24,15 +24,22 @@ class SoilParams:
     krelax: float = 0.4     # how fast respiration tracks activity
 
 
+def _unpack(u):
+    """u = (mineralization, drainage[, nitrate_dose]). Dose is the control lever."""
+    min_in, drain = u[0], u[1]
+    no3_dose = u[2] if len(u) > 2 else 0.0
+    return min_in, drain, no3_dose
+
+
 def deriv(x, u, p: SoilParams):
     NH4, NO3, resp, act = x
     NH4 = max(NH4, 0.0); NO3 = max(NO3, 0.0)
     act = max(act, 0.0)
-    min_in, drain = u
+    min_in, drain, no3_dose = _unpack(u)
     r = act * p.k * NH4 / (p.K + NH4)
     return np.array([
         min_in - r,
-        r - drain * NO3 - p.uptake,
+        r - drain * NO3 - p.uptake + no3_dose,   # fertigation adds nitrate
         p.krelax * (act * p.base_resp - resp),
         0.0,
     ])
@@ -41,11 +48,11 @@ def deriv(x, u, p: SoilParams):
 def deriv_batch(X, u, p: SoilParams):
     NH4 = np.clip(X[:, 0], 0, None); NO3 = np.clip(X[:, 1], 0, None)
     resp = X[:, 2]; act = np.clip(X[:, 3], 0, None)
-    min_in, drain = u
+    min_in, drain, no3_dose = _unpack(u)
     r = act * p.k * NH4 / (p.K + NH4)
     d = np.empty_like(X)
     d[:, 0] = min_in - r
-    d[:, 1] = r - drain * NO3 - p.uptake
+    d[:, 1] = r - drain * NO3 - p.uptake + no3_dose
     d[:, 2] = p.krelax * (act * p.base_resp - resp)
     d[:, 3] = 0.0
     return d
@@ -82,12 +89,15 @@ def build_spec() -> SystemSpec:
     )
 
 
-def simulate(hours=120.0, seed=11, available=None, fault=True):
+def simulate(hours=120.0, seed=11, available=None, fault=True,
+             intervene_t=None, intervene_u=None):
     spec = build_spec()
     dt = 1.0 / 60.0
 
     def u_of_t(t):
-        return (0.5, 0.02)  # mineralization mg/L/h, drainage fraction /h
+        if intervene_t is not None and t >= intervene_t:
+            return intervene_u          # controller action: fertigate nitrate
+        return (0.5, 0.02, 0.0)  # mineralization mg/L/h, drainage /h, no dose
 
     def hidden_of_t(t):
         if not fault:

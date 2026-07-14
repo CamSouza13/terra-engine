@@ -31,7 +31,8 @@ def _write_csv(drop=(), numeric_time=False):
         for i in range(len(t)):
             m = sim["meas"][i]
             ts = float(t[i]) if numeric_time else (start + timedelta(hours=float(t[i]))).isoformat()
-            row = {"timestamp": ts, "excretion_kg_h": f"{sim['u'][i]:.4f}"}
+            exc = sim['u'][i][0] if hasattr(sim['u'][i], '__len__') else sim['u'][i]
+            row = {"timestamp": ts, "excretion_kg_h": f"{exc:.4f}"}
             for ch in ("TAN", "NO2", "NO3", "DO"):
                 row[ch] = f"{m[ch]:.4f}" if ch in m else ""
             w.writerow([row[c] for c in cols])

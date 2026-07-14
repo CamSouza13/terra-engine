@@ -43,14 +43,22 @@ def unionized_nh3_fraction(pH: float, temp_c: float) -> float:
     return 1.0 / (1.0 + 10.0 ** (pKa - pH))
 
 
+def _unpack(u):
+    """u is either excretion (scalar) or (excretion, exchange_multiplier)."""
+    if hasattr(u, "__len__"):
+        return u[0], (u[1] if len(u) > 1 else 1.0)
+    return u, 1.0
+
+
 def deriv(x, u, p: RASParams):
     TAN, NO2, NO3, DO, eff = x
     TAN = max(TAN, 0.0); NO2 = max(NO2, 0.0); NO3 = max(NO3, 0.0)
     eff = min(max(eff, 0.0), 1.5)
-    p_tan = tan_production(u, p)
+    exc, qm = _unpack(u)
+    p_tan = tan_production(exc, p)
     r1 = eff * p.k1 * TAN / (p.K1 + TAN)
     r2 = eff * p.k2 * NO2 / (p.K2 + NO2)
-    dil = p.Q / p.V
+    dil = p.Q * qm / p.V          # qm = water-exchange control lever (default 1)
     return np.array([
         p_tan - r1 - dil * (TAN - p.TAN_in),
         r1 - r2 - dil * (NO2 - p.NO2_in),
@@ -64,10 +72,11 @@ def deriv_batch(X, u, p: RASParams):
     TAN = np.clip(X[:, 0], 0, None); NO2 = np.clip(X[:, 1], 0, None)
     NO3 = np.clip(X[:, 2], 0, None); DO = X[:, 3]
     eff = np.clip(X[:, 4], 0, 1.5)
-    p_tan = tan_production(u, p)
+    exc, qm = _unpack(u)
+    p_tan = tan_production(exc, p)
     r1 = eff * p.k1 * TAN / (p.K1 + TAN)
     r2 = eff * p.k2 * NO2 / (p.K2 + NO2)
-    dil = p.Q / p.V
+    dil = p.Q * qm / p.V
     d = np.empty_like(X)
     d[:, 0] = p_tan - r1 - dil * (TAN - p.TAN_in)
     d[:, 1] = r1 - r2 - dil * (NO2 - p.NO2_in)
@@ -112,7 +121,8 @@ def build_spec(pH: float = 7.5, temp_c: float = 27.0) -> SystemSpec:
     )
 
 
-def simulate(hours=48.0, seed=7, available=None, fault=True):
+def simulate(hours=48.0, seed=7, available=None, fault=True,
+             intervene_t=None, intervene_u=None):
     spec = build_spec()
     feed_hours = (7.0, 12.0, 17.0)
     feed_kg, window, tau = 1.8, 0.5, 3.0
@@ -131,11 +141,12 @@ def simulate(hours=48.0, seed=7, available=None, fault=True):
 
     def u_of_t(t):
         # advance a first-order excretion lag as time marches (dt-consistent)
-        if t <= state["t"]:
-            return state["exc"]
-        state["exc"] += (dt / tau) * (feed_rate(t) - state["exc"])
-        state["t"] = t
-        return state["exc"]
+        if t > state["t"]:
+            state["exc"] += (dt / tau) * (feed_rate(t) - state["exc"])
+            state["t"] = t
+        if intervene_t is not None and t >= intervene_t:
+            return intervene_u          # controller action: cut feed, raise exchange
+        return (state["exc"], 1.0)
 
     def hidden_of_t(t):
         if not fault:

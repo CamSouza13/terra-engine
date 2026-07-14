@@ -83,11 +83,14 @@ def build_spec() -> SystemSpec:
     )
 
 
-def simulate(hours=48.0, seed=5, available=None, fault=True):
+def simulate(hours=48.0, seed=5, available=None, fault=True,
+             intervene_t=None, intervene_u=None):
     spec = build_spec()
     dt = 1.0 / 60.0
 
     def u_of_t(t):
+        if intervene_t is not None and t >= intervene_t:
+            return intervene_u            # controller action: restore donor dosing
         if not fault:
             return 1.0                    # dosing holds steady
         return 1.0 if t < 20.0 else 0.0   # dosing pump fails at h20

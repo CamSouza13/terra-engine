@@ -33,7 +33,7 @@ def main(out):
                 f"{m.get('NO2', ''):.4f}" if "NO2" in m else "",
                 f"{m.get('NO3', ''):.4f}" if "NO3" in m else "",
                 f"{m.get('DO', ''):.4f}" if "DO" in m else "",
-                f"{sim['u'][i]:.4f}",
+                f"{(sim['u'][i][0] if hasattr(sim['u'][i], '__len__') else sim['u'][i]):.4f}",
             ])
     print(f"wrote {out}  ({len(t)} rows)")
 

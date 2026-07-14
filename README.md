@@ -26,6 +26,13 @@ It runs on the edge (NumPy only, no cloud), and it rides on whatever sensors you
 have: **channels can be enabled or disabled per timestep** based on data
 availability.
 
+4. **Control (optional).** A separate `Controller` turns a forecast into a
+   corrective action — it searches the available actuators (water exchange,
+   fertigation, donor dosing, life-support backup) for the least-aggressive move
+   that brings the breach probability back under a safe threshold. It
+   **recommends by default and enacts only when an operator has authorized
+   autonomy**. Perception and action are deliberately separate components.
+
 ## One engine, four loops
 
 A *domain* is not a fork of the engine — it is a `SystemSpec`: a set of state
@@ -123,6 +130,7 @@ For a plain-language, code-included tour of the engine and all four domains, see
 terra/
   core.py                 # SystemSpec, TerraEngine, shared simulator, RK4
   ukf.py                  # Unscented Kalman Filter (variable channels)
+  control.py              # controller: forecast -> recommended/enacted action
   ingest.py               # replay logged sensor CSVs through a domain
   domains/
     aquaculture.py        # RAS nitrogen loop
