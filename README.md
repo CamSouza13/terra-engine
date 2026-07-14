@@ -1,5 +1,7 @@
 # Terra Engine
 
+[![CI](https://github.com/CamSouza13/terra-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/CamSouza13/terra-engine/actions/workflows/ci.yml)
+
 **One Bayesian inference engine for every closed biogeochemical loop.**
 
 Terra measures, models, and stabilizes the mass and energy budget of a living
@@ -70,11 +72,33 @@ for t_ev, level, msg in engine.events:
 
 ### Running on real data
 
-`engine.step` takes a dict of `{channel_name: value}` — pass only the channels
-that reported this cycle. A probe going offline just means its key is absent;
-the filter leans on the model and the remaining channels. To adapt to your rig,
-edit the domain's `build_spec()` (channels, noise, safety limits) or write a new
-`SystemSpec`.
+Two ways in.
+
+**A logged CSV.** Point `terra.ingest.run_csv` at a file whose columns are a
+timestamp plus one column per sensor channel (names matching the domain's
+channels). Blank cells or missing columns are treated as that sensor being
+offline, so partial and irregular logs work as-is.
+
+```bash
+python scripts/make_sample_csv.py data/aquaculture_sample.csv   # example log
+python scripts/run_csv.py --domain aquaculture \
+    --csv data/aquaculture_sample.csv --time-col timestamp \
+    --u-col excretion_kg_h --u-forecast 0.225
+```
+
+```python
+from terra.ingest import run_csv
+from terra.domains import aquaculture
+
+res = run_csv(aquaculture.build_spec(), "my_tank_log.csv",
+              time_col="timestamp", u_col="feed_kg_h", u_forecast=0.225)
+for t, level, msg in res.events:
+    print(f"{t:.1f}h  {level}  {msg}")
+```
+
+**A live loop.** Call `engine.step(t, dt, {channel: value}, u)` each cycle with
+only the channels that reported. To adapt to your rig, edit the domain's
+`build_spec()` (channels, noise, safety limits) or write a new `SystemSpec`.
 
 ## How it works
 
@@ -96,13 +120,20 @@ edit the domain's `build_spec()` (channels, noise, safety limits) or write a new
 terra/
   core.py                 # SystemSpec, TerraEngine, shared simulator, RK4
   ukf.py                  # Unscented Kalman Filter (variable channels)
+  ingest.py               # replay logged sensor CSVs through a domain
   domains/
     aquaculture.py        # RAS nitrogen loop
     soil.py               # root-zone nitrogen / CEA
     bioremediation.py     # in-situ contaminant drawdown
     blss.py               # closed-habitat air loop
-scripts/run_demo.py       # multi-domain demo + plots + sensor dropout
-tests/test_engine.py      # generic + per-domain tests
+scripts/
+  run_demo.py             # multi-domain demo + plots + sensor dropout
+  run_csv.py              # replay a CSV log through a domain
+  make_sample_csv.py      # emit an example log with a known fault
+tests/
+  test_engine.py          # generic + per-domain tests
+  test_ingest.py          # CSV ingestion tests
+.github/workflows/ci.yml  # runs the suite on 3.10-3.12 every push/PR
 ```
 
 ## Status and honesty
