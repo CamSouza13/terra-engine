@@ -1,0 +1,2 @@
+numpy>=1.23
+matplotlib>=3.6   ; only needed for scripts/run_demo.py plots

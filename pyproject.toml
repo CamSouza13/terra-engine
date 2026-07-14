@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "terra-engine"
+version = "0.2.0"
+description = "One Bayesian inference engine for every closed biogeochemical loop."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Terra Laboratories" }]
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.6"]
+
+[tool.setuptools.packages.find]
+include = ["terra*"]
