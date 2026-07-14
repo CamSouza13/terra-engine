@@ -112,7 +112,7 @@ def build_spec(pH: float = 7.5, temp_c: float = 27.0) -> SystemSpec:
     )
 
 
-def simulate(hours=48.0, seed=7, available=None):
+def simulate(hours=48.0, seed=7, available=None, fault=True):
     spec = build_spec()
     feed_hours = (7.0, 12.0, 17.0)
     feed_kg, window, tau = 1.8, 0.5, 3.0
@@ -138,6 +138,8 @@ def simulate(hours=48.0, seed=7, available=None):
         return state["exc"]
 
     def hidden_of_t(t):
+        if not fault:
+            return 1.0
         a, b, final = 24.0, 28.0, 0.15
         if t <= a:
             return 1.0

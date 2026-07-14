@@ -82,7 +82,7 @@ def build_spec() -> SystemSpec:
     )
 
 
-def simulate(hours=120.0, seed=11, available=None):
+def simulate(hours=120.0, seed=11, available=None, fault=True):
     spec = build_spec()
     dt = 1.0 / 60.0
 
@@ -90,6 +90,8 @@ def simulate(hours=120.0, seed=11, available=None):
         return (0.5, 0.02)  # mineralization mg/L/h, drainage fraction /h
 
     def hidden_of_t(t):
+        if not fault:
+            return 1.0
         a, b, final = 24.0, 40.0, 0.25
         if t <= a:
             return 1.0

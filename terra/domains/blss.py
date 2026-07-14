@@ -74,7 +74,7 @@ def build_spec() -> SystemSpec:
     )
 
 
-def simulate(hours=48.0, seed=3, available=None):
+def simulate(hours=48.0, seed=3, available=None, fault=True):
     spec = build_spec()
     dt = 1.0 / 60.0
 
@@ -82,6 +82,8 @@ def simulate(hours=48.0, seed=3, available=None):
         return 1.0                        # continuous LED light
 
     def hidden_of_t(t):
+        if not fault:
+            return 1.0
         a, b, final = 12.0, 16.0, 0.30
         if t <= a:
             return 1.0
