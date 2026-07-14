@@ -171,6 +171,10 @@ class TerraEngine:
             hx = lambda x, _ch=chans: np.array([ch.obs(x) for ch in _ch])
             R = np.diag([ch.noise ** 2 for ch in chans])
             self.ukf.update(z, hx, R)
+        else:
+            # prediction-only step (no sensors reported): clear stale diagnostics
+            self.ukf.innovation = np.zeros(0)
+            self.ukf.nis = 0.0
 
         x = self.ukf.x.copy()
         P = self.ukf.P.copy()

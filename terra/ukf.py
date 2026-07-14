@@ -49,17 +49,20 @@ class UnscentedKalmanFilter:
         n = self.dim_x
         P = 0.5 * (P + P.T) + 1e-12 * np.eye(n)  # keep symmetric / PD
         try:
-            U = np.linalg.cholesky(self._c * P)
+            # lower-triangular L with L @ L.T = c*P; the valid square-root
+            # vectors are the COLUMNS of L (sum_i col_i col_i^T = L L^T = c*P).
+            L = np.linalg.cholesky(self._c * P)
         except np.linalg.LinAlgError:
-            # fall back to eigen decomposition if not PD
+            # symmetric square root fallback if not PD (rows == columns here)
             w, V = np.linalg.eigh(self._c * P)
             w = np.clip(w, 1e-12, None)
-            U = (V * np.sqrt(w)) @ V.T
+            L = (V * np.sqrt(w)) @ V.T
         pts = np.zeros((2 * n + 1, n))
         pts[0] = x
         for i in range(n):
-            pts[i + 1] = x + U[i]
-            pts[n + i + 1] = x - U[i]
+            col = L[:, i]
+            pts[i + 1] = x + col
+            pts[n + i + 1] = x - col
         return pts
 
     def predict(self, dt: float) -> None:
