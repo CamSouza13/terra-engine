@@ -18,9 +18,15 @@ except Exception:  # pragma: no cover - exercised only without the extra
     HAS_JAX = False
 
 if HAS_JAX:
-    from .nuts import fit_nuts, CalibrationResult, rollout
+    from .nuts import (
+        fit_nuts, CalibrationResult, rollout,
+        calibrated_spec, calibrate_and_build,
+    )
     from . import jax_models
 
 __all__ = ["HAS_JAX"]
 if HAS_JAX:
-    __all__ += ["fit_nuts", "CalibrationResult", "rollout", "jax_models"]
+    __all__ += [
+        "fit_nuts", "CalibrationResult", "rollout",
+        "calibrated_spec", "calibrate_and_build", "jax_models",
+    ]

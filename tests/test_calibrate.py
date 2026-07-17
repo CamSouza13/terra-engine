@@ -56,9 +56,44 @@ def test_apply_to_updates_params():
     print(f"  apply_to set k1={updated.k1:.2f}, left V={updated.V:.0f} fixed")
 
 
+def test_close_loop_beats_default():
+    # a site whose kinetics differ from the library defaults
+    from dataclasses import replace
+    from terra.calibrate import calibrate_and_build
+    from terra.domains import aquaculture
+    from terra.domains.aquaculture import RASParams
+    from terra import TerraEngine, EngineConfig
+
+    true = replace(RASParams(), k1=1.05, k2=1.25, kLa=1.70, resp=1.05)
+    _, tr = aquaculture.simulate(hours=18.0, fault=False, params=true, seed=1)
+    cal_spec, _ = calibrate_and_build(
+        aquaculture.build_spec(), tr["t"], tr["u"], tr["meas"],
+        num_warmup=120, num_samples=120, seed=0)
+
+    _, te = aquaculture.simulate(hours=36.0, fault=True, params=true, seed=2)
+
+    def mean_nis(spec):
+        eng = TerraEngine(spec, EngineConfig(forecast_horizon_h=12))
+        dt = te["t"][1] - te["t"][0]
+        vals = []
+        for i, t in enumerate(te["t"]):
+            e = eng.step(t, dt, te["meas"][i], te["u"][i],
+                         u_forecast=te.get("u_forecast"))
+            if e.used_channels:
+                vals.append(e.nis / max(len(e.used_channels), 1))
+        return float(np.mean(vals))
+
+    nis_def = mean_nis(aquaculture.build_spec())   # library defaults (mis-specified)
+    nis_cal = mean_nis(cal_spec)                    # tuned to the site
+    assert nis_cal < nis_def, (nis_cal, nis_def)
+    print(f"  held-out NIS/dof  default={nis_def:.2f}  calibrated={nis_cal:.2f}"
+          f"  ({100 * (1 - nis_cal / nis_def):+.0f}%)")
+
+
 if __name__ == "__main__":
     n = 0
-    for fn in (test_recovers_kinetics, test_apply_to_updates_params):
+    for fn in (test_recovers_kinetics, test_apply_to_updates_params,
+               test_close_loop_beats_default):
         fn()
         print(f"PASS  {fn.__name__}")
         n += 1

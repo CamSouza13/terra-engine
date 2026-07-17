@@ -86,8 +86,9 @@ def deriv_batch(X, u, p: RASParams):
     return d
 
 
-def build_spec(pH: float = 7.5, temp_c: float = 27.0) -> SystemSpec:
-    p = RASParams()
+def build_spec(pH: float = 7.5, temp_c: float = 27.0,
+               params: "RASParams | None" = None) -> SystemSpec:
+    p = params if params is not None else RASParams()
     env = {"pH": pH, "temp_c": temp_c}
 
     def budget(x, u, p):
@@ -122,8 +123,8 @@ def build_spec(pH: float = 7.5, temp_c: float = 27.0) -> SystemSpec:
 
 
 def simulate(hours=48.0, seed=7, available=None, fault=True,
-             intervene_t=None, intervene_u=None):
-    spec = build_spec()
+             intervene_t=None, intervene_u=None, params=None):
+    spec = build_spec(params=params)
     feed_hours = (7.0, 12.0, 17.0)
     feed_kg, window, tau = 1.8, 0.5, 3.0
     # excretion lag state carried via closure

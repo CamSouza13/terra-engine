@@ -162,3 +162,25 @@ def fit_nuts(times, u_series, meas, spec, *,
              jnp.asarray(obs), jnp.asarray(mask), sigma)
     samples = {k: np.asarray(v) for k, v in mcmc.get_samples().items()}
     return CalibrationResult(samples, tuple(channels))
+
+
+# ---- close the loop: fit -> calibrated spec -> edge engine -------------------
+
+def calibrated_spec(spec, result: CalibrationResult):
+    """Return a copy of `spec` whose process params carry the fitted medians.
+
+    The returned SystemSpec drops straight into ``TerraEngine`` so the edge
+    estimator runs with site-specific kinetics instead of library defaults.
+    """
+    return dataclasses.replace(spec, params=result.apply_to(spec.params))
+
+
+def calibrate_and_build(base_spec, times, u_series, meas, **fit_kwargs):
+    """One call from a logged run to a calibrated spec.
+
+    Fits the kinetic parameters with NUTS and returns
+    ``(calibrated_spec, CalibrationResult)``. Pass the result's spec to
+    ``TerraEngine`` to run the edge estimator tuned to this site.
+    """
+    result = fit_nuts(times, u_series, meas, base_spec, **fit_kwargs)
+    return calibrated_spec(base_spec, result), result
