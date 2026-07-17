@@ -137,15 +137,47 @@ terra/
     soil.py               # root-zone nitrogen / CEA
     bioremediation.py     # in-situ contaminant drawdown
     blss.py               # closed-habitat air loop
+  calibrate/              # OPTIONAL offline parameter fit (jax/numpyro, off-edge)
+    jax_models.py         # differentiable mirror of a domain's dynamics
+    nuts.py               # RK4 rollout + NUTS parameter posterior
 scripts/
   run_demo.py             # multi-domain demo + plots + sensor dropout
   run_csv.py              # replay a CSV log through a domain
+  run_calibrate.py        # fit kinetics from a run, apply to the edge engine
   make_sample_csv.py      # emit an example log with a known fault
 tests/
   test_engine.py          # generic + per-domain tests
   test_ingest.py          # CSV ingestion tests
 .github/workflows/ci.yml  # runs the suite on 3.10-3.12 every push/PR
 ```
+
+## Offline calibration (optional)
+
+The edge engine tracks *state* assuming the kinetics are known. The
+`terra.calibrate` layer solves the complementary offline problem: given a
+logged run, it infers the process *parameters* (nitrification rates, oxygen
+transfer, respiration) with full posterior uncertainty using HMC/NUTS, so a
+site can be calibrated against real data before the edge engine is trusted.
+
+It is a deliberately separate, optional layer — the edge core stays numpy-only
+and never imports JAX. The differentiable model lives in
+`terra/calibrate/jax_models.py`, mirroring the numpy dynamics the engine runs.
+
+```bash
+pip install terra-engine[calibrate]     # adds jax + numpyro
+python scripts/run_calibrate.py         # recover RAS kinetics from a synthetic run
+```
+
+```python
+from terra.calibrate import fit_nuts
+from terra.domains import aquaculture
+
+spec, sim = aquaculture.simulate(hours=24, fault=False)
+res = fit_nuts(sim["t"], sim["u"], sim["meas"], spec)
+calibrated = res.apply_to(spec.params)   # RASParams with fitted kinetics
+```
+
+See [`docs/CALIBRATION.md`](docs/CALIBRATION.md) for the full walkthrough.
 
 ## Status and honesty
 
