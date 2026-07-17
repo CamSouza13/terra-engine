@@ -159,9 +159,11 @@ logged run, it infers the process *parameters* (nitrification rates, oxygen
 transfer, respiration) with full posterior uncertainty using HMC/NUTS, so a
 site can be calibrated against real data before the edge engine is trusted.
 
-It is a deliberately separate, optional layer — the edge core stays numpy-only
-and never imports JAX. The differentiable model lives in
-`terra/calibrate/jax_models.py`, mirroring the numpy dynamics the engine runs.
+All four domains are calibratable (each has a differentiable `CalModel` in
+`terra/calibrate/models.py`), and the fit can jointly infer per-channel sensor
+drift / biofouling (`fit_drift=...`) so a lying sensor is separated from a real
+process change instead of biasing the kinetics. It is a deliberately separate,
+optional layer — the edge core stays numpy-only and never imports JAX.
 
 ```bash
 pip install terra-engine[calibrate]     # adds jax + numpyro

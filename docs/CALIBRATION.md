@@ -77,10 +77,44 @@ python scripts/run_calibrate.py --hours 24 --samples 400
 python tests/test_calibrate.py          # recovery test (skips without the extra)
 ```
 
-## Extending to other domains
+## All four domains
 
-`jax_models.py` mirrors one domain (aquaculture) as the reference. To calibrate
-soil, bioremediation, or BLSS, add a JAX `deriv`, a `FIT_PARAMS`/`PRIOR` block,
-and the observed-channel indices, then reuse `rollout` and `fit_nuts`
-unchanged. The rollout and inference are domain-agnostic; only the differentiable
-model differs.
+Calibration is domain-agnostic. Each domain has a `CalModel` in
+`terra/calibrate/models.py` — a differentiable `deriv`, the parameters to fit
+with priors, and a channel-to-state map — and `fit_nuts` resolves it from
+`spec.name`. The same call calibrates any domain:
+
+| Domain | Fit parameters |
+|---|---|
+| `aquaculture` | `k1`, `k2`, `kLa`, `resp` |
+| `soil` | `k`, `uptake`, `base_resp` |
+| `bioremediation` | `k`, `y` |
+| `blss` | `Pmax`, `crew_co2`, `crew_o2` |
+
+```python
+from terra.calibrate import fit_nuts
+from terra.domains import soil
+spec, sim = soil.simulate(fault=False)
+res = fit_nuts(sim["t"], sim["u"], sim["meas"], spec)   # model picked by spec.name
+```
+
+To add a new domain, add a `CalModel` to `models.py` (a JAX `deriv`, a
+`fit_params`/`prior` block, and an `obs_map`) and register it. The rollout and
+inference are unchanged.
+
+## Sensor drift / biofouling
+
+Real logs are corrupted by slow sensor drift (biofouling, calibration wander).
+Pass `fit_drift` to jointly infer a per-channel linear drift rate
+(`obs = signal + rate * t`) alongside the process parameters, so the fit
+separates a real process change from a lying sensor instead of baking the drift
+into the kinetics.
+
+```python
+res = fit_nuts(sim["t"], sim["u"], meas, spec, fit_drift=["TAN"])   # or fit_drift=True
+res.drift()          # {"TAN": rate_per_hour}
+res.medians()["k1"]  # kinetics, corrected for the drift
+```
+
+This is the differentiating capability: Bayesian fusion that stays honest under
+drifting, fouling sensors rather than threshold-alerting on raw gauges.

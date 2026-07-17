@@ -90,10 +90,48 @@ def test_close_loop_beats_default():
           f"  ({100 * (1 - nis_cal / nis_def):+.0f}%)")
 
 
+def test_all_domains_calibrate():
+    from terra.domains import soil, bioremediation, blss
+    cases = [
+        (soil, dict(hours=48.0), "k", (0.8, 2.4), 1.5),
+        (bioremediation, dict(hours=18.0), "k", (0.25, 0.9), 0.5),
+        (blss, dict(hours=18.0), "Pmax", (340.0, 620.0), 466.0),
+    ]
+    for mod, kw, key, (lo, hi), truth in cases:
+        spec, sim = mod.simulate(fault=False, seed=4, **kw)
+        med = fit_nuts(sim["t"], sim["u"], sim["meas"], spec,
+                       num_warmup=100, num_samples=100, seed=0).medians()
+        assert all(np.isfinite(v) for v in med.values()), (spec.name, med)
+        assert lo < med[key] < hi, (spec.name, key, med[key])
+        print(f"  {spec.name:14} {key}={med[key]:.3f} (truth {truth})")
+
+
+def test_drift_inference_separates_sensor_from_process():
+    # inject a slow biofouling drift on the TAN probe
+    spec, sim = aquaculture.simulate(hours=20.0, fault=False, seed=7)
+    dr = 0.03  # mg/L per hour
+    meas = [dict(m) for m in sim["meas"]]
+    for i, t in enumerate(sim["t"]):
+        if "TAN" in meas[i]:
+            meas[i]["TAN"] += dr * t
+
+    naive = fit_nuts(sim["t"], sim["u"], meas, spec,
+                     num_warmup=120, num_samples=120, seed=0).medians()
+    aware = fit_nuts(sim["t"], sim["u"], meas, spec, fit_drift=["TAN"],
+                     num_warmup=150, num_samples=150, seed=0).medians()
+
+    assert abs(aware["drift_TAN"] - dr) < 0.02, aware          # recovered drift
+    # separating drift pulls k1 back toward the truth vs ignoring it
+    assert abs(aware["k1"] - 1.6) < abs(naive["k1"] - 1.6), (naive["k1"], aware["k1"])
+    print(f"  drift_TAN={aware['drift_TAN']:.3f} (truth {dr})  "
+          f"k1 naive={naive['k1']:.2f} -> aware={aware['k1']:.2f} (truth 1.60)")
+
+
 if __name__ == "__main__":
     n = 0
     for fn in (test_recovers_kinetics, test_apply_to_updates_params,
-               test_close_loop_beats_default):
+               test_close_loop_beats_default, test_all_domains_calibrate,
+               test_drift_inference_separates_sensor_from_process):
         fn()
         print(f"PASS  {fn.__name__}")
         n += 1

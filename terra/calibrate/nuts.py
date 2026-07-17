@@ -1,18 +1,15 @@
-"""Offline Bayesian calibration of a domain's kinetic parameters via HMC/NUTS.
+"""Offline Bayesian calibration of a domain's parameters via HMC/NUTS.
 
 The edge engine (``TerraEngine`` + UKF) is a real-time *state* estimator: it
 assumes the process parameters are known and tracks the state. This module
 solves the complementary offline problem — given a logged run, infer the
-*parameters* (nitrification rates, O2 transfer, respiration) with full
-posterior uncertainty, so a site can be calibrated before the edge engine is
-trusted operationally.
+*parameters* (kinetics, transfer rates) with full posterior uncertainty, and
+optionally the *sensor drift / biofouling* corrupting the log, so a site can be
+calibrated before the edge engine is trusted operationally.
 
-It integrates the JAX process model with RK4 (mirroring ``terra.core.rk4``),
-places LogNormal priors on the fit parameters, and samples the posterior with
-NumPyro's NUTS. The result carries posterior samples and an ``apply_to`` helper
-that returns an updated ``RASParams`` for the edge engine to consume.
-
-Requires the optional ``calibrate`` extra: ``pip install terra-engine[calibrate]``.
+It is domain-agnostic: the differentiable model, the parameters to fit, and the
+channel-to-state map come from a ``CalModel`` (see ``models.py``), resolved by
+domain name. Requires the optional extra: ``pip install terra-engine[calibrate]``.
 """
 from __future__ import annotations
 
@@ -27,49 +24,68 @@ import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import MCMC, NUTS
 
-from . import jax_models as M
+from .models import get_model
+from .spec import CalModel
 
 
 # ---- differentiable RK4 rollout ---------------------------------------------
 
-def _rk4(x, dt, u, theta):
-    k1 = M.deriv(x, u, theta)
-    k2 = M.deriv(x + 0.5 * dt * k1, u, theta)
-    k3 = M.deriv(x + 0.5 * dt * k2, u, theta)
-    k4 = M.deriv(x + dt * k3, u, theta)
+def _rk4(deriv, x, dt, u, theta):
+    k1 = deriv(x, u, theta)
+    k2 = deriv(x + 0.5 * dt * k1, u, theta)
+    k3 = deriv(x + 0.5 * dt * k2, u, theta)
+    k4 = deriv(x + dt * k3, u, theta)
     return x + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
 
 
-def rollout(theta, x0, u_arr, dt_meas, n_sub):
+def rollout(deriv, theta, x0, u_arr, dt_meas, n_sub):
     """Integrate from ``x0`` under piecewise-constant inputs.
 
     ``u_arr`` has one row per interval (length N-1 for N measurement times);
-    each interval is integrated with ``n_sub`` RK4 substeps. Returns the state
-    at each of the N measurement times, shape (N, 5).
+    each interval takes ``n_sub`` RK4 substeps. Returns the state at each of the
+    N measurement times, shape (N, S).
     """
     dt = dt_meas / n_sub
 
     def interval(x, u):
         def sub(xx, _):
-            return _rk4(xx, dt, u, theta), None
+            return _rk4(deriv, xx, dt, u, theta), None
         x_next, _ = jax.lax.scan(sub, x, None, length=n_sub)
         return x_next, x_next
 
-    _, xs = jax.lax.scan(interval, x0, u_arr)          # (N-1, 5)
-    return jnp.concatenate([x0[None, :], xs], axis=0)  # (N, 5)
+    _, xs = jax.lax.scan(interval, x0, u_arr)          # (N-1, S)
+    return jnp.concatenate([x0[None, :], xs], axis=0)  # (N, S)
 
 
-# ---- probabilistic model -----------------------------------------------------
+# ---- probabilistic model (closure over a CalModel) ---------------------------
 
-def _model(u_arr, x0, dt_meas, n_sub, obs, mask, sigma):
-    theta = {}
-    for name in M.FIT_PARAMS:
-        med, s = M.PRIOR[name]
-        theta[name] = numpyro.sample(name, dist.LogNormal(jnp.log(med), s))
-    preds = rollout(theta, x0, u_arr, dt_meas, n_sub)        # (N, 5)
-    pred_obs = preds[:, list(M.OBS_INDEX)]                    # (N, 4)
-    # masked Gaussian likelihood — only channels that reported contribute
-    numpyro.sample("obs", dist.Normal(pred_obs, sigma).mask(mask), obs=obs)
+def _make_model(model: CalModel, channels, drift_cols):
+    obs_map = model.obs_map
+
+    def _model(u_arr, x0, dt_meas, n_sub, obs, mask, sigma, times, drift_sd):
+        theta = {}
+        for name in model.fit_params:
+            med, s = model.prior[name]
+            theta[name] = numpyro.sample(name, dist.LogNormal(jnp.log(med), s))
+
+        drift = {}
+        for j, c in enumerate(drift_cols):
+            ch = channels[c]
+            drift[c] = numpyro.sample("drift_" + ch,
+                                      dist.Normal(0.0, drift_sd[j]))
+
+        preds = rollout(model.deriv, theta, x0, u_arr, dt_meas, n_sub)  # (N, S)
+        cols = []
+        for c, ch in enumerate(channels):
+            idx, scale, offset = obs_map[ch]
+            col = scale * preds[:, idx] + offset
+            if c in drift:
+                col = col + drift[c] * times
+            cols.append(col)
+        pred_obs = jnp.stack(cols, axis=1)                              # (N, C)
+        numpyro.sample("obs", dist.Normal(pred_obs, sigma).mask(mask), obs=obs)
+
+    return _model
 
 
 # ---- result container --------------------------------------------------------
@@ -78,6 +94,7 @@ def _model(u_arr, x0, dt_meas, n_sub, obs, mask, sigma):
 class CalibrationResult:
     samples: dict
     channels: tuple
+    fit_params: tuple
 
     def medians(self) -> dict:
         return {k: float(np.median(v)) for k, v in self.samples.items()}
@@ -94,19 +111,30 @@ class CalibrationResult:
             }
         return out
 
+    def drift(self) -> dict:
+        """Fitted sensor drift rates (channel-units per hour), if any."""
+        return {k[len("drift_"):]: float(np.median(v))
+                for k, v in self.samples.items() if k.startswith("drift_")}
+
     def apply_to(self, params: Any) -> Any:
-        """Return a copy of a dataclass params object with fitted values set."""
+        """Return a copy of a dataclass params object with fitted values set.
+
+        Only process parameters that exist on ``params`` are applied; sensor
+        drift terms are ignored (they describe the sensors, not the process).
+        """
         med = self.medians()
         updates = {k: v for k, v in med.items() if hasattr(params, k)}
         return dataclasses.replace(params, **updates)
 
     def print_report(self, truth: dict | None = None) -> None:
         s = self.summary()
-        print(f"{'param':6}  {'median':>8}  {'90% CI':>18}" +
-              ("  truth" if truth else ""))
+        header = f"{'param':10}  {'median':>9}  {'90% CI':>20}"
+        if truth:
+            header += "  truth"
+        print(header)
         for k in self.samples:
             ci = f"[{s[k]['q5']:.3f}, {s[k]['q95']:.3f}]"
-            line = f"{k:6}  {s[k]['median']:8.3f}  {ci:>18}"
+            line = f"{k:10}  {s[k]['median']:9.3f}  {ci:>20}"
             if truth and k in truth:
                 line += f"  {truth[k]:.3f}"
             print(line)
@@ -114,34 +142,41 @@ class CalibrationResult:
 
 # ---- input helpers -----------------------------------------------------------
 
-def _u_pair(u) -> list:
-    """Normalise an input to [excretion, exchange_multiplier]."""
+def _u_row(u) -> list:
+    """Normalise an input to a flat list of floats (any arity)."""
     if hasattr(u, "__len__"):
-        return [float(u[0]), float(u[1]) if len(u) > 1 else 1.0]
-    return [float(u), 1.0]
+        return [float(v) for v in u]
+    return [float(u)]
 
 
-def fit_nuts(times, u_series, meas, spec, *,
-             channels=M.OBS_CHANNELS, num_warmup=300, num_samples=300,
-             n_sub=4, seed=0, progress_bar=False) -> CalibrationResult:
-    """Fit kinetic parameters from a logged run.
+def fit_nuts(times, u_series, meas, spec, *, model=None, channels=None,
+             fit_drift=None, num_warmup=300, num_samples=300, n_sub=4,
+             seed=0, progress_bar=False) -> CalibrationResult:
+    """Fit a domain's parameters (and optional sensor drift) from a logged run.
 
     Parameters
     ----------
-    times : sequence of float
-        Measurement timestamps (hours), assumed ~uniform.
-    u_series : sequence
-        Input at each timestamp; scalar excretion or (excretion, exchange).
-    meas : list of dict
-        Per-timestamp ``{channel: value}`` (missing channels allowed).
+    times, u_series, meas :
+        Timestamps (hours), input at each timestamp, and per-timestamp
+        ``{channel: value}`` dicts (missing channels allowed).
     spec : SystemSpec
-        The domain spec (for x0 and per-channel sensor noise).
+        Domain spec (for x0, per-channel sensor noise, and the domain name used
+        to resolve the calibration model).
+    model : CalModel, optional
+        Override the model; defaults to the one registered for ``spec.name``.
+    fit_drift : sequence of str or True, optional
+        Channels to give a linear drift/biofouling term (``obs = signal +
+        rate * t``). ``True`` enables drift on every observed channel.
     """
+    model = model or get_model(spec.name)
+    channels = tuple(channels or model.channels)
+
     times = np.asarray(times, float)
     n = len(times)
     dt_meas = float(times[1] - times[0])
+    t_rel = jnp.asarray(times - times[0])
 
-    u_arr = jnp.asarray(np.array([_u_pair(u_series[i]) for i in range(n - 1)]))
+    u_arr = jnp.asarray(np.array([_u_row(u_series[i]) for i in range(n - 1)]))
     x0 = jnp.asarray(np.asarray(spec.x0, float))
 
     obs = np.zeros((n, len(channels)), float)
@@ -153,24 +188,33 @@ def fit_nuts(times, u_series, meas, spec, *,
             if v is not None and np.isfinite(v):
                 obs[i, j] = float(v)
                 mask[i, j] = True
-    sigma = jnp.asarray([spec.channels[ch].noise for ch in channels])
+    sigma = np.array([spec.channels[ch].noise for ch in channels], float)
 
-    kernel = NUTS(_model)
-    mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples,
-                progress_bar=progress_bar)
+    if fit_drift is True:
+        drift_names = list(channels)
+    else:
+        drift_names = list(fit_drift or [])
+    drift_cols = [channels.index(ch) for ch in drift_names]
+    drift_sd = jnp.asarray([sigma[c] for c in drift_cols]) if drift_cols \
+        else jnp.asarray([], float)
+
+    numpyro_model = _make_model(model, channels, drift_cols)
+    mcmc = MCMC(NUTS(numpyro_model), num_warmup=num_warmup,
+                num_samples=num_samples, progress_bar=progress_bar)
     mcmc.run(jax.random.PRNGKey(seed), u_arr, x0, dt_meas, n_sub,
-             jnp.asarray(obs), jnp.asarray(mask), sigma)
+             jnp.asarray(obs), jnp.asarray(mask), jnp.asarray(sigma),
+             t_rel, drift_sd)
     samples = {k: np.asarray(v) for k, v in mcmc.get_samples().items()}
-    return CalibrationResult(samples, tuple(channels))
+    return CalibrationResult(samples, channels, tuple(model.fit_params))
 
 
 # ---- close the loop: fit -> calibrated spec -> edge engine -------------------
 
 def calibrated_spec(spec, result: CalibrationResult):
-    """Return a copy of `spec` whose process params carry the fitted medians.
+    """Return a copy of ``spec`` whose process params carry the fitted medians.
 
     The returned SystemSpec drops straight into ``TerraEngine`` so the edge
-    estimator runs with site-specific kinetics instead of library defaults.
+    estimator runs with site-specific parameters instead of library defaults.
     """
     return dataclasses.replace(spec, params=result.apply_to(spec.params))
 
@@ -178,7 +222,7 @@ def calibrated_spec(spec, result: CalibrationResult):
 def calibrate_and_build(base_spec, times, u_series, meas, **fit_kwargs):
     """One call from a logged run to a calibrated spec.
 
-    Fits the kinetic parameters with NUTS and returns
+    Fits the parameters with NUTS and returns
     ``(calibrated_spec, CalibrationResult)``. Pass the result's spec to
     ``TerraEngine`` to run the edge estimator tuned to this site.
     """

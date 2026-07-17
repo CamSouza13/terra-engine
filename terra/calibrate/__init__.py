@@ -22,11 +22,14 @@ if HAS_JAX:
         fit_nuts, CalibrationResult, rollout,
         calibrated_spec, calibrate_and_build,
     )
+    from .models import MODELS, get_model
+    from .spec import CalModel
     from . import jax_models
 
 __all__ = ["HAS_JAX"]
 if HAS_JAX:
     __all__ += [
         "fit_nuts", "CalibrationResult", "rollout",
-        "calibrated_spec", "calibrate_and_build", "jax_models",
+        "calibrated_spec", "calibrate_and_build",
+        "MODELS", "get_model", "CalModel", "jax_models",
     ]
