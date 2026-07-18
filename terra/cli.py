@@ -73,6 +73,26 @@ def cmd_calibrate(args) -> int:
     return 0
 
 
+def cmd_node(args) -> int:
+    import os
+    from terra.node import NodeRunner, NodeConfig, SimulatedDriver, self_test
+    if args.selftest:
+        ok, checks = self_test(args.domain)
+        for name, passed in checks:
+            print(f"  [{'ok ' if passed else 'FAIL'}] {name}")
+        print("self-test:", "PASS" if ok else "FAIL")
+        return 0 if ok else 1
+    mod = _get_domain(args.domain)
+    spec, sim = mod.simulate()
+    state = os.environ.get("TERRA_STATE", "terra_node_state.json")
+    runner = NodeRunner(
+        spec, SimulatedDriver(spec, sim),
+        NodeConfig(state_path=state, max_cycles=args.cycles))
+    runner.run(on_event=lambda ev: print(f"  {ev[0]:6.1f} h  {ev[1]:5}  {ev[2]}"),
+               banner=True)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="terra", description="Terra Engine CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -92,6 +112,12 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--warmup", type=int, default=200)
     c.add_argument("--samples", type=int, default=300)
     c.set_defaults(func=cmd_calibrate)
+
+    n = sub.add_parser("node", help="run the edge-node service (simulated driver)")
+    n.add_argument("--domain", default="aquaculture")
+    n.add_argument("--cycles", type=int, default=None)
+    n.add_argument("--selftest", action="store_true", help="run bring-up self-test")
+    n.set_defaults(func=cmd_node)
 
     return p
 

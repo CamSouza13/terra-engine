@@ -149,6 +149,7 @@ terra/
   baselines.py            # raw-gauge threshold baseline for benchmarking
   diagnostics.py          # pure-numpy split-R-hat / ESS
   cli.py                  # the `terra` command
+  node/                   # edge-node runtime (driver, service loop, self-test)
   domains/
     aquaculture.py        # RAS nitrogen loop
     soil.py               # root-zone nitrogen / CEA

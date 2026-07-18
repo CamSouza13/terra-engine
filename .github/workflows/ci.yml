@@ -44,11 +44,17 @@ jobs:
       - name: Run CLI tests
         run: python tests/test_cli.py
 
+      - name: Run node-runtime tests
+        run: python tests/test_node.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 
       - name: Smoke-test the CLI
         run: python -m terra.cli validate --domain aquaculture
+
+      - name: Smoke-test the node self-test
+        run: python -m terra.cli node --domain aquaculture --selftest
 
   calibrate:
     name: Bayesian calibration (optional extra)

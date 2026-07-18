@@ -1,0 +1,22 @@
+[Unit]
+Description=Terra Engine edge node
+Documentation=https://github.com/CamSouza13/terra-engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=terra
+Group=terra
+WorkingDirectory=/opt/terra
+Environment=TERRA_STATE=/var/lib/terra/state.json
+# --cycles omitted => run continuously; set --domain per node
+ExecStartPre=/usr/bin/env terra node --domain aquaculture --selftest
+ExecStart=/usr/bin/env terra node --domain aquaculture
+Restart=always
+RestartSec=5
+# survive reboots: state is persisted atomically to TERRA_STATE
+StateDirectory=terra
+
+[Install]
+WantedBy=multi-user.target

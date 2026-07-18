@@ -47,11 +47,12 @@ system. Checked items are in the repo today.
 
 ## Edge deployment — make "runs on a Pi" literal
 
-- [ ] Hardware driver layer (I2C / serial) feeding `engine.step`
-- [ ] Daemon / service runtime: logging, watchdog, state persistence across restarts
+- [ ] Hardware driver layer (I2C / serial) feeding `engine.step` (abstraction + `SimulatedDriver` done; real driver TODO)
+- [x] Daemon / service runtime: systemd unit, watchdog (Restart), atomic state persistence, self-test (`terra/node/`, `deploy/`)
 - [ ] Actuator interface so the controller can drive pumps/dosing, behind the autonomy gate, with an audit log
 - [ ] On-device performance + memory benchmarking on Pi-class hardware
 - [ ] Offline resilience: buffering, store-and-forward
+- [x] Node hardware spec + BOM + build-vs-buy + Terra-branded board plan (`docs/HARDWARE.md`)
 
 ## Control-layer maturity
 
