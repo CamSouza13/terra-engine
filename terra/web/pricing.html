@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Terra — Pricing</title>
+<style>
+:root{--bg:#f5f5f4;--panel:#fff;--fill:#efefec;--line:rgba(0,0,0,.08);--line2:rgba(0,0,0,.16);--ink:#1c1c1e;--sec:#6e6e73;--muted:#a1a1a6;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;}
+@media(prefers-color-scheme:dark){:root{--bg:#0b0b0c;--panel:#161618;--fill:#1e1e21;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.20);--ink:#f2f2f2;--sec:#98989e;--muted:#6b6b70;}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5}
+.wrap{max-width:960px;margin:0 auto;padding:56px 20px 80px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:44px}
+.brand{font-weight:500;font-size:16px}
+.top a{color:var(--sec);font-size:13px;text-decoration:none}
+h1{font-size:32px;font-weight:500;letter-spacing:-.02em;text-align:center}
+.lede{color:var(--sec);font-size:15px;text-align:center;margin-top:8px}
+.trial{margin:26px auto 0;max-width:520px;text-align:center;font-size:13px;color:var(--sec);background:var(--fill);border-radius:12px;padding:12px 16px}
+.trial b{color:var(--ink);font-weight:500}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:34px}
+@media(max-width:760px){.tiers{grid-template-columns:1fr}}
+.tier{background:var(--panel);border:0.5px solid var(--line);border-radius:16px;padding:24px 22px;display:flex;flex-direction:column}
+.tier.hi{border:1.5px solid var(--ink)}
+.badge{align-self:flex-start;font-size:11px;color:var(--bg);background:var(--ink);border-radius:20px;padding:3px 10px;margin-bottom:12px}
+.tier h2{font-size:17px;font-weight:500}
+.price{font-size:30px;font-weight:500;margin-top:10px;letter-spacing:-.02em}
+.price span{font-size:13px;color:var(--muted);font-weight:400}
+.tier .for{color:var(--sec);font-size:13px;margin-top:4px;min-height:36px}
+.btn{all:unset;cursor:pointer;text-align:center;font-size:13px;padding:11px;border-radius:10px;border:0.5px solid var(--line2);margin:18px 0 16px;color:var(--ink)}
+.btn:hover{background:var(--fill)}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+li{font-size:13px;color:var(--sec);display:flex;gap:9px;align-items:flex-start}
+li::before{content:"–";color:var(--muted)}
+li.no{opacity:.5}
+li.no::before{content:"·"}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="brand">Terra</div><a href="/">Open console</a></div>
+  <h1>Simple pricing for closed loops.</h1>
+  <div class="lede">One inference engine, per node. From a fish farm to a habitat.</div>
+  <div class="trial">Start free — <b>14 days, every feature, no card required.</b></div>
+
+  <div class="tiers">
+    <div class="tier">
+      <h2>Free</h2>
+      <div class="price">$0</div>
+      <div class="for">One node, to watch a single loop.</div>
+      <button class="btn" data-plan="free">Start free</button>
+      <ul>
+        <li>Live dashboard, one node</li>
+        <li>7-day history</li>
+        <li>Email alerts</li>
+        <li class="no">Calibration</li>
+        <li class="no">Autonomy and control</li>
+      </ul>
+    </div>
+
+    <div class="tier hi">
+      <div class="badge">Most popular</div>
+      <h2>Pro</h2>
+      <div class="price">$49 <span>/ node / mo</span></div>
+      <div class="for">Run a site for real, with control.</div>
+      <button class="btn pri" data-plan="pro">Start 14-day trial</button>
+      <ul>
+        <li>Everything in Free</li>
+        <li>Unlimited history and export</li>
+        <li>Cloud calibration (HMC/NUTS)</li>
+        <li>Autonomy and control, gated</li>
+        <li>SMS, Slack, and webhook alerts</li>
+        <li>Public API access</li>
+      </ul>
+    </div>
+
+    <div class="tier">
+      <h2>Fleet</h2>
+      <div class="price">Custom</div>
+      <div class="for">Many sites, teams, and compliance.</div>
+      <button class="btn" data-plan="fleet">Contact sales</button>
+      <ul>
+        <li>Everything in Pro</li>
+        <li>Multi-site fleet dashboard</li>
+        <li>Roles, SSO, and audit log</li>
+        <li>Regulator-ready reports</li>
+        <li>SLA and priority support</li>
+        <li>Self-host option</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot">Prices per active node. Cancel anytime. From the mud to the moon.</div>
+</div>
+<script>
+const base=location.origin, tok=(()=>{try{return localStorage.getItem("terra_token")}catch(e){return null}})();
+document.querySelectorAll(".btn").forEach(b=>b.onclick=async()=>{
+  const plan=b.dataset.plan;
+  if(plan==="fleet"){location.href="mailto:cameron@terralaboratories.com?subject=Terra%20Fleet";return;}
+  if(plan==="free"||!tok){location.href="/";return;}
+  b.textContent="Upgrading…";
+  try{await fetch(base+"/api/billing/upgrade",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({plan})});location.href="/";}
+  catch(e){b.textContent="Try again";}
+});
+</script>
+</body>
+</html>

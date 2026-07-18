@@ -38,11 +38,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .core import TerraEngine, EngineConfig
 from .domains import DOMAINS
 from .control import Controller, policy_for
+from . import accounts as acc
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 DATA_DIR = os.path.join(HOME, "data")
 CONFIG_PATH = os.path.join(HOME, "config.json")
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
+
+# auth is off for local single-user use; set TERRA_AUTH=1 for the hosted platform
+AUTH_ENFORCED = bool(os.environ.get("TERRA_AUTH"))
+LOCAL_USER = {"user_id": 0, "email": "local", "role": "owner", "workspace_id": 0,
+              "workspace": "local", "plan": "pro", "raw_plan": "pro", "trial_ends": None}
 
 # nominal process input per domain when a log doesn't carry one
 NOMINAL_U = {"aquaculture": [0.22, 1.0], "soil": [0.5, 0.02, 0.0],
@@ -376,10 +382,41 @@ def make_handler(pf: Platform):
         def do_OPTIONS(self):
             self._send(204, b"")
 
+        def _token(self):
+            h = self.headers.get("Authorization", "")
+            if h.startswith("Bearer "):
+                return h[7:]
+            for part in self.headers.get("Cookie", "").split(";"):
+                if part.strip().startswith("terra_session="):
+                    return part.strip()[14:]
+            return None
+
+        def _user(self):
+            u = acc.session_user(self._token())
+            if u:
+                return u
+            return None if AUTH_ENFORCED else dict(LOCAL_USER)
+
+        def _gate(self, feature):
+            u = self._user()
+            if u is None:
+                self._send(401, {"error": "sign in to continue"})
+                return None
+            if not acc.has_feature(u, feature):
+                self._send(402, {"error": "your plan does not include this",
+                                 "feature": feature, "plan": u["plan"], "upgrade": True})
+                return None
+            return u
+
         def do_GET(self):
             from urllib.parse import urlparse, parse_qs
             u = urlparse(self.path)
             p, q = u.path, parse_qs(u.query)
+            if p == "/api/auth/me":
+                u = self._user()
+                return self._send(200, {"auth_enforced": AUTH_ENFORCED,
+                    "authenticated": bool(u and u.get("email") != "local"),
+                    "user": u, "trial_days_left": (acc.trial_days_left(u) if u else 0)})
             if p == "/api/status":
                 return self._send(200, pf.status())
             if p == "/api/config":
@@ -387,7 +424,11 @@ def make_handler(pf: Platform):
             if p == "/api/state":
                 return self._send(200, pf.state())
             if p == "/api/history":
-                return self._send(200, pf.history(int((q.get("n", ["200"])[0]))))
+                u = self._user()
+                n = int(q.get("n", ["200"])[0])
+                if not (u and acc.has_feature(u, "history")):
+                    n = min(n, acc.FREE_HISTORY_ROWS)
+                return self._send(200, pf.history(n))
             if p == "/api/export":
                 self.send_response(200)
                 self.send_header("Content-Type", "text/csv")
@@ -395,6 +436,11 @@ def make_handler(pf: Platform):
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 return self.wfile.write(pf.export_csv().encode())
+            if p in ("/pricing", "/pricing.html"):
+                f = os.path.join(WEB_DIR, "pricing.html")
+                if os.path.exists(f):
+                    return self._send(200, open(f, "rb").read(), "text/html; charset=utf-8")
+                return self._send(404, {"error": "pricing not bundled"})
             if p in ("/", "/index.html"):
                 f = os.path.join(WEB_DIR, "index.html")
                 if os.path.exists(f):
@@ -413,18 +459,49 @@ def make_handler(pf: Platform):
                 data = json.loads(raw or b"{}")
             except Exception:
                 data = {}
+            if p == "/api/auth/signup":
+                try:
+                    r = acc.create_account(data.get("email"), data.get("password"),
+                                           data.get("workspace"))
+                except ValueError as e:
+                    return self._send(400, {"error": str(e)})
+                return self._send(200, {"token": r["token"],
+                                        "user": acc.session_user(r["token"])})
+            if p == "/api/auth/login":
+                tok = acc.login(data.get("email"), data.get("password"))
+                if not tok:
+                    return self._send(401, {"error": "invalid email or password"})
+                return self._send(200, {"token": tok, "user": acc.session_user(tok)})
+            if p == "/api/auth/logout":
+                t = self._token()
+                if t:
+                    acc.logout(t)
+                return self._send(200, {"ok": True})
+            if p == "/api/billing/upgrade":
+                u = self._user()
+                if not u or not u.get("workspace_id"):
+                    return self._send(401, {"error": "sign in first"})
+                # real billing opens a Stripe Checkout session; this stub sets the plan
+                acc.set_plan(u["workspace_id"], data.get("plan", "pro"))
+                return self._send(200, {"ok": True, "plan": data.get("plan", "pro"), "stub": True})
             if p == "/api/config":
                 pf.set_config(data)
                 return self._send(200, pf.config())
             if p == "/api/control":
+                if self._gate("control") is None:
+                    return
                 pf.autonomy = bool(data.get("autonomy"))
                 pf.cfg["autonomy"] = pf.autonomy
                 save_config(pf.cfg)
                 return self._send(200, pf.status())
             if p == "/api/offline":
+                if self._gate("control") is None:
+                    return
                 pf.offline = bool(data.get("offline"))
                 return self._send(200, pf.status())
             if p == "/api/calibrate":
+                if self._gate("calibrate") is None:
+                    return
                 return self._send(200, pf.calibrate())
             return self._send(404, {"error": "not found"})
     return H

@@ -133,7 +133,8 @@ canvas{width:100%;display:block}
       node · <b id="fNode">—</b><br>
       domain · <b id="fDomain">—</b><br>
       source · <b id="fSource">—</b><br>
-      engine · <b id="fEngine">—</b>
+      engine · <b id="fEngine">—</b><br>
+      <span id="logoutLink" style="display:none;cursor:pointer;color:var(--sec)">Sign out</span>
     </div>
   </aside>
   <main>
@@ -143,6 +144,7 @@ canvas{width:100%;display:block}
         <span class="tn" id="tbT">t —</span>
         <span class="clock tn" id="tbClock">--:--:--</span>
         <span class="pill" id="statuspill"><span class="b"></span><span id="statusText">connecting</span></span>
+        <button class="ibtn" id="acctBtn" style="display:none"></button>
         <button class="ibtn" id="themeBtn">Auto</button>
         <button class="ibtn" id="densBtn">Comfortable</button>
       </div>
@@ -233,6 +235,17 @@ canvas{width:100%;display:block}
     </section>
   </main>
 </div>
+<div id="authOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center">
+  <div style="background:var(--panel);border:0.5px solid var(--line);border-radius:16px;padding:24px;width:330px;max-width:90vw">
+    <div style="font-size:17px;font-weight:500" id="authTitle">Sign in to Terra</div>
+    <div style="font-size:13px;color:var(--sec);margin-top:4px" id="authSub">Your workspace and nodes.</div>
+    <input id="authEmail" class="field" placeholder="you@company.com" style="width:100%;margin-top:16px">
+    <input id="authPw" class="field" type="password" placeholder="Password (8+ characters)" style="width:100%;margin-top:10px">
+    <div class="hint" id="authErr" style="color:var(--ink)"></div>
+    <button class="btn primary" id="authGo" style="width:100%;margin-top:14px">Continue</button>
+    <div style="text-align:center;font-size:12px;color:var(--sec);margin-top:12px"><a href="#" id="authSwap" style="color:var(--sec)">Create an account</a></div>
+  </div>
+</div>
 <script>
 const DLABEL={aquaculture:"Aquaculture (RAS)",soil:"Soil / CEA",bioremediation:"Bioremediation",blss:"BLSS (habitat air)"};
 const HLABEL={aquaculture:"Biofilter efficiency",soil:"Microbial activity",bioremediation:"Degrader activity",blss:"Crop photosynthetic capacity"};
@@ -242,9 +255,10 @@ const TIERS={"Field / mid-grade":{note:"analog probes, ADC, RP2040",items:[["Boa
 "Lab-grade":{note:"Atlas EZO smart sensors",items:[["Board and compute","Pi 4","—"],["DO kit","Atlas EZO, isolated","$355"],["pH kit","Atlas EZO","$150"],["ORP kit","Atlas EZO","$120"],["EC kit","Atlas EZO","$165"],["Temp and enclosure","","$105"]],total:"$1,050"},
 "Bring-your-own":{note:"rides on existing probes",items:[["Board and carrier","Pi, isolation","$60"],["Integration","to existing probes","labor"]],total:"$125"}};
 const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
-const S={base:location.protocol.startsWith("http")?location.origin:"",connected:false,cfg:null,timer:null,paused:false,hwBoard:1,hwTier:"Field / mid-grade"};
+const S={base:location.protocol.startsWith("http")?location.origin:"",connected:false,cfg:null,timer:null,paused:false,hwBoard:1,hwTier:"Field / mid-grade",
+  token:(()=>{try{return localStorage.getItem("terra_token")}catch(e){return null}})(),me:null,authMode:"login"};
 
-async function api(path,opts){const r=await fetch(S.base+path,Object.assign({cache:"no-store"},opts||{}));if(!r.ok)throw new Error(r.status);return r.json();}
+async function api(path,opts){opts=opts||{};const h=Object.assign({},opts.headers||{});if(S.token)h.Authorization="Bearer "+S.token;const r=await fetch(S.base+path,Object.assign({cache:"no-store"},opts,{headers:h}));if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e;}return r.json();}
 async function post(path,body){return api(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});}
 
 async function connect(url){
@@ -258,6 +272,7 @@ async function onConnected(st){
   $("#connTag").textContent="connected";$("#connTag").className="tag g";
   $("#offlineTog").style.display="inline-flex";$("#offlineTog").classList.toggle("on",st.offline);$("#autoTog").classList.toggle("on",st.autonomy);
   $("#fNode").textContent=(st.hardware&&st.hardware.board)||"terra-node";$("#fDomain").textContent=st.domain;$("#fSource").textContent=st.source;$("#fEngine").textContent=st.running?"running":"idle";
+  $("#tbNode").textContent="terra-node";$("#tbDomain").textContent=st.domain;$("#tbSource").textContent=st.source;
   $("#connStatus").textContent="Connected · "+st.domain+" · source "+st.source;$("#srcTag").textContent="source · "+st.source;
   await loadConfig();
   if(!S.timer)S.timer=setInterval(tick,1000);
@@ -294,7 +309,8 @@ async function tick(){
   try{const h=await api("/api/history?n=200");drawChart(h);}catch(e){}
 }
 function renderState(s){
-  const live=s.ready;$("#statuspill").classList.toggle("live",live);$("#statusText").textContent=live?("live · "+(s.source||"")):"waiting for data";$("#fEngine").textContent=live?"running":"idle";
+  const live=s.ready;$("#statuspill").classList.toggle("live",live);$("#statusText").textContent=live?"live":"waiting";$("#fEngine").textContent=live?"running":"idle";
+  $("#tbT").textContent="t "+(s.t!=null?s.t.toFixed(1)+"h":"—");
   if(!S.cfg)return;const chans=S.cfg.channels,w=$("#tele");
   if(w.childElementCount!==chans.length){w.innerHTML="";chans.forEach(c=>{const cell=el("div","mc");cell.dataset.k=c.key;cell.innerHTML=`<div class="l">${c.key}</div><div class="v">—</div>`;w.appendChild(cell);});}
   const used=s.used||[];
@@ -311,9 +327,10 @@ function renderState(s){
 }
 function drawChart(hist){const cv=$("#chart");if(!cv||!S.cfg||!hist||hist.length<2)return;const key=S.cfg.channels[0].key;const dpr=Math.min(devicePixelRatio||1,2),w=cv.clientWidth,h=150;cv.width=w*dpr;cv.height=h*dpr;const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
   const vals=hist.map(r=>(r.channels||{})[key]).filter(v=>v!=null);if(vals.length<2)return;const mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*0.2+1e-6;
-  x.strokeStyle="rgba(0,0,0,.06)";x.lineWidth=1;for(let g=0;g<4;g++){const yy=Math.round(h*g/3)+.5;x.beginPath();x.moveTo(0,yy);x.lineTo(w,yy);x.stroke();}
-  x.strokeStyle="#1c1c1e";x.lineWidth=1.6;x.beginPath();vals.forEach((v,i)=>{const px=i/(vals.length-1)*w,py=h-((v-mn+pad)/((mx-mn)+2*pad))*h;i?x.lineTo(px,py):x.moveTo(px,py);});x.stroke();
-  const ly=h-((vals[vals.length-1]-mn+pad)/((mx-mn)+2*pad))*h;x.fillStyle="#1c1c1e";x.beginPath();x.arc(w-2,ly,2.5,0,6.28);x.fill();}
+  const cs=getComputedStyle(document.documentElement),ink=(cs.getPropertyValue("--ink")||"#1c1c1e").trim(),grid=(cs.getPropertyValue("--line")||"rgba(0,0,0,.06)").trim();
+  x.strokeStyle=grid;x.lineWidth=1;for(let g=0;g<4;g++){const yy=Math.round(h*g/3)+.5;x.beginPath();x.moveTo(0,yy);x.lineTo(w,yy);x.stroke();}
+  x.strokeStyle=ink;x.lineWidth=1.6;x.beginPath();vals.forEach((v,i)=>{const px=i/(vals.length-1)*w,py=h-((v-mn+pad)/((mx-mn)+2*pad))*h;i?x.lineTo(px,py):x.moveTo(px,py);});x.stroke();
+  const ly=h-((vals[vals.length-1]-mn+pad)/((mx-mn)+2*pad))*h;x.fillStyle=ink;x.beginPath();x.arc(w-2,ly,2.5,0,6.28);x.fill();}
 
 const META={setup:["Node hardware","Live from the running node. Every value is computed by the engine and stored on disk."],
   domain:["Domain & sensors","Reconfigure the running engine: domain, wired channels, and safety limits."],
@@ -323,11 +340,42 @@ function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remov
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
-$("#autoTog").onclick=async()=>{const on=!$("#autoTog").classList.contains("on");$("#autoTog").classList.toggle("on",on);if(S.connected)await post("/api/control",{autonomy:on});};
+$("#autoTog").onclick=async()=>{if($("#autoTog").dataset.locked){location.href="/pricing";return;}const on=!$("#autoTog").classList.contains("on");$("#autoTog").classList.toggle("on",on);if(S.connected){try{await post("/api/control",{autonomy:on});}catch(e){if(e.status===402){$("#autoTog").classList.toggle("on",!on);location.href="/pricing";}}}};
 $("#offlineTog").onclick=async()=>{const on=!$("#offlineTog").classList.contains("on");$("#offlineTog").classList.toggle("on",on);if(S.connected)await post("/api/offline",{offline:on});$("#connStatus").textContent=on?"Offline operation on. The node runs autonomously; this console is optional.":"Online, connected.";};
+
+function planAllows(f){if(!S.me)return true;const p=(S.me.user&&S.me.user.plan)||"free";const map={trial:["calibrate","control","history"],pro:["calibrate","control","history"],fleet:["calibrate","control","history","multi_node"],free:[]};return (map[p]||[]).includes(f);}
+function applyPlan(){
+  const ab=$("#acctBtn"),ll=$("#logoutLink");
+  if(S.me&&S.me.auth_enforced){ab.style.display="inline-block";
+    if(S.me.authenticated){const p=S.me.user.plan;ab.textContent=p==="trial"?("Trial · "+S.me.trial_days_left+"d"):p.charAt(0).toUpperCase()+p.slice(1);ll.style.display="inline";}
+    else{ab.textContent="Sign in";ll.style.display="none";}
+  }else{ab.style.display="none";ll.style.display="none";}
+  const cal=planAllows("calibrate"),ctl=planAllows("control");
+  const bc=$("#btnCal");if(bc)bc.disabled=!cal;
+  const cs=$("#calStatus");if(cs&&!cal)cs.innerHTML='Calibration is a Pro feature. <a href="/pricing" style="color:var(--ink)">Upgrade</a>';
+  const at=$("#autoTog");if(at){at.style.opacity=ctl?"1":".5";at.dataset.locked=ctl?"":"1";}
+}
+async function initAuth(){try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();if(S.me&&S.me.auth_enforced&&!S.me.authenticated)showAuth();}
+function showAuth(){$("#authOverlay").style.display="flex";}
+$("#authSwap").onclick=e=>{e.preventDefault();S.authMode=S.authMode==="login"?"signup":"login";const su=S.authMode==="signup";$("#authTitle").textContent=su?"Create your workspace":"Sign in to Terra";$("#authSub").textContent=su?"14 days free, every feature, no card.":"Your workspace and nodes.";$("#authSwap").textContent=su?"Have an account? Sign in":"Create an account";$("#authGo").textContent=su?"Create account":"Sign in";};
+$("#authGo").onclick=async()=>{const email=$("#authEmail").value.trim(),pw=$("#authPw").value;$("#authErr").textContent="";
+  try{const r=await post("/api/auth/"+(S.authMode==="signup"?"signup":"login"),{email,password:pw});S.token=r.token;try{localStorage.setItem("terra_token",S.token);}catch(e){}location.reload();}
+  catch(e){$("#authErr").textContent=S.authMode==="signup"?"Could not create account. Email may be in use, or the password is under 8 characters.":"Invalid email or password.";}};
+$("#acctBtn").onclick=()=>{if(S.me&&S.me.authenticated)location.href="/pricing";else showAuth();};
+$("#logoutLink").onclick=async()=>{try{await post("/api/auth/logout",{});}catch(e){}try{localStorage.removeItem("terra_token");}catch(e){}S.token=null;location.reload();};
+
+function applyTheme(t){if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",t);$("#themeBtn").textContent=t.charAt(0).toUpperCase()+t.slice(1);try{localStorage.setItem("terra_theme",t);}catch(e){}}
+function applyDensity(d){document.documentElement.setAttribute("data-density",d);$("#densBtn").textContent=d.charAt(0).toUpperCase()+d.slice(1);try{localStorage.setItem("terra_density",d);}catch(e){}}
+let themeState="auto",densState="comfortable";try{themeState=localStorage.getItem("terra_theme")||"auto";densState=localStorage.getItem("terra_density")||"comfortable";}catch(e){}
+applyTheme(themeState);applyDensity(densState);
+$("#themeBtn").onclick=()=>{themeState=themeState==="auto"?"light":themeState==="light"?"dark":"auto";applyTheme(themeState);};
+$("#densBtn").onclick=()=>{densState=densState==="comfortable"?"compact":"comfortable";applyDensity(densState);};
+setInterval(()=>{const e=$("#tbClock");if(e)e.textContent=new Date().toLocaleTimeString([],{hour12:false});},1000);
+$("#tbClock").textContent=new Date().toLocaleTimeString([],{hour12:false});
 
 renderBoards();renderTiers();renderBOM();
 $("#nodeUrl").value=S.base||"";
+initAuth();
 connect();
 </script>
 </body>
