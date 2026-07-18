@@ -128,6 +128,9 @@ canvas{width:100%;display:block}
       <button data-v="domain"><span class="n">2</span>Domain &amp; sensors</button>
       <button data-v="calib"><span class="n">3</span>Calibration &amp; data</button>
       <button data-v="dash"><span class="n">4</span>Live dashboard</button>
+      <button data-v="fleet"><span class="n">5</span>Fleet</button>
+      <button data-v="alerts"><span class="n">6</span>Alerts</button>
+      <button data-v="settings"><span class="n">7</span>Settings</button>
     </nav>
     <div class="foot">
       node · <b id="fNode">—</b><br>
@@ -233,6 +236,64 @@ canvas{width:100%;display:block}
         <div class="card"><h3>Events</h3><div class="events" id="events" style="margin-top:6px"></div></div>
       </div>
     </section>
+
+    <section class="view" id="v-fleet">
+      <div class="row" style="justify-content:space-between;margin-bottom:14px">
+        <span class="tag" id="fleetCount">— nodes</span>
+        <button class="btn sm" id="btnFleetRefresh">Refresh</button>
+      </div>
+      <div class="card"><table class="tbl" style="width:100%"><thead><tr>
+        <th style="text-align:left">Node</th><th style="text-align:left">Domain</th>
+        <th style="text-align:left">Status</th><th class="r">Last seen</th>
+        <th class="r">Alerts (1h)</th></tr></thead><tbody id="fleetBody"></tbody></table>
+        <div class="hint" id="fleetEmpty" style="margin-top:10px;display:none">No nodes yet. Enroll one from Settings, or run a node that reports to this server.</div>
+      </div>
+    </section>
+
+    <section class="view" id="v-alerts">
+      <div class="card" id="alertGate" style="display:none"><h3>Alerts are a paid feature</h3><div class="desc">Get threshold, consistency, and forecast alerts with email, Slack, and webhook delivery. <a href="/pricing" style="color:var(--ink)">See plans</a>.</div></div>
+      <div id="alertBody">
+        <div class="card">
+          <h3>New alert rule</h3>
+          <div class="desc">Fire when a live value crosses a threshold. Metric can be a channel, <code>nis</code> (consistency), <code>hidden</code>, or <code>risk:&lt;target&gt;</code>.</div>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+            <input class="field" id="arName" placeholder="Name" style="width:150px">
+            <input class="field" id="arMetric" placeholder="metric (e.g. dissolved_oxygen)" style="width:210px">
+            <select class="field" id="arOp"><option value="<">below</option><option value=">">above</option></select>
+            <input class="field" id="arThresh" placeholder="threshold" style="width:110px">
+            <select class="field" id="arDelivery"><option value="none">store only</option><option value="email">email</option><option value="slack">Slack</option><option value="webhook">webhook</option></select>
+            <input class="field" id="arDest" placeholder="email / webhook URL" style="width:200px">
+            <button class="btn primary sm" id="btnAddRule">Add rule</button>
+          </div>
+          <div class="hint" id="arStatus" style="margin-top:8px"></div>
+        </div>
+        <div class="grid g2" style="margin-top:12px">
+          <div class="card"><h3>Rules</h3><div id="rulesList" style="margin-top:8px"></div></div>
+          <div class="card"><h3>Recent events</h3><div class="events" id="alertEvents" style="margin-top:8px"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-settings">
+      <div class="grid g2">
+        <div class="card">
+          <h3>Enroll a node</h3>
+          <div class="desc">Mint a one-time token, then run the node with it. The node receives its own key and authenticates every report — no trusting the network.</div>
+          <button class="btn primary sm" id="btnEnrollTok" style="margin-top:12px">Generate enrollment token</button>
+          <div id="enrollOut" style="margin-top:10px"></div>
+        </div>
+        <div class="card" id="keysCard">
+          <div id="keysGate" style="display:none"><h3>API keys</h3><div class="desc">Programmatic access is a paid feature. <a href="/pricing" style="color:var(--ink)">See plans</a>.</div></div>
+          <div id="keysBody">
+            <h3>API keys</h3>
+            <div class="desc">For the public API (<code>/api/v1</code>). Shown once at creation — store it now.</div>
+            <div class="row" style="gap:8px;margin-top:12px"><input class="field" id="keyName" placeholder="Key name" style="width:160px"><button class="btn primary sm" id="btnAddKey">Create key</button></div>
+            <div id="newKey" style="margin-top:10px"></div>
+            <div id="keysList" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 <div id="authOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center">
@@ -335,8 +396,11 @@ function drawChart(hist){const cv=$("#chart");if(!cv||!S.cfg||!hist||hist.length
 const META={setup:["Node hardware","Live from the running node. Every value is computed by the engine and stored on disk."],
   domain:["Domain & sensors","Reconfigure the running engine: domain, wired channels, and safety limits."],
   calib:["Calibration & data","Ingest real logs and run the real NUTS fit; results are applied to the engine."],
-  dash:["Live dashboard","The running engine: real telemetry, the inferred hidden state, forecast, and events."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];}
+  dash:["Live dashboard","The running engine: real telemetry, the inferred hidden state, forecast, and events."],
+  fleet:["Fleet","Every node reporting to this workspace, with health and active alerts."],
+  alerts:["Alerts","Rules that watch the live estimate and notify you by email, Slack, or webhook."],
+  settings:["Settings","Enroll nodes securely and manage API keys for the public API."]};
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings")loadKeys();}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
@@ -363,6 +427,19 @@ $("#authGo").onclick=async()=>{const email=$("#authEmail").value.trim(),pw=$("#a
   catch(e){$("#authErr").textContent=S.authMode==="signup"?"Could not create account. Email may be in use, or the password is under 8 characters.":"Invalid email or password.";}};
 $("#acctBtn").onclick=()=>{if(S.me&&S.me.authenticated)location.href="/pricing";else showAuth();};
 $("#logoutLink").onclick=async()=>{try{await post("/api/auth/logout",{});}catch(e){}try{localStorage.removeItem("terra_token");}catch(e){}S.token=null;location.reload();};
+
+function fmtAge(s){if(s==null)return "—";if(s<60)return Math.round(s)+"s ago";if(s<3600)return Math.round(s/60)+"m ago";return Math.round(s/3600)+"h ago";}
+async function loadFleet(){try{const d=await api("/api/fleet");const b=$("#fleetBody");b.innerHTML="";const nodes=d.nodes||[];$("#fleetCount").textContent=nodes.length+" node"+(nodes.length===1?"":"s");$("#fleetEmpty").style.display=nodes.length?"none":"block";nodes.forEach(n=>{const tr=el("tr");const dot=n.stale?'<span style="color:var(--sec)">● stale</span>':'<span style="color:var(--ink)">● live</span>';tr.innerHTML=`<td><b>${n.name}</b><div class="hint">${n.node_id}</div></td><td style="color:var(--sec)">${n.domain||"—"}</td><td>${dot}</td><td class="r tn">${fmtAge(n.age_s)}</td><td class="r tn">${n.alerts_1h||0}</td>`;b.appendChild(tr);});}catch(e){}}
+
+async function loadAlerts(){const gated=!planAllows("alerts")&&S.me&&S.me.auth_enforced;$("#alertGate").style.display=gated?"block":"none";$("#alertBody").style.display=gated?"none":"block";if(gated)return;try{renderRules((await api("/api/alerts/rules")).rules||[]);}catch(e){}try{renderAlertEvents((await api("/api/alerts/events?n=40")).events||[]);}catch(e){}}
+function renderRules(rules){const w=$("#rulesList");w.innerHTML="";if(!rules.length){w.innerHTML='<div class="hint">No rules yet.</div>';return;}rules.forEach(r=>{const d=el("div");d.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--line)";const via=r.delivery&&r.delivery!=="none"?(" · "+r.delivery):"";d.innerHTML=`<div><b>${r.name}</b><div class="hint">${r.metric} ${r.op} ${r.threshold}${via}</div></div>`;const del=el("button","btn sm","Delete");del.onclick=async()=>{await post("/api/alerts/rules/delete",{id:r.id});loadAlerts();};d.appendChild(del);w.appendChild(d);});}
+function renderAlertEvents(evs){const w=$("#alertEvents");w.innerHTML="";if(!evs.length){w.innerHTML='<div class="hint">No events yet.</div>';return;}evs.forEach(e=>{const t=new Date((e.created||0)*1000).toLocaleTimeString([],{hour12:false});const line=el("div");line.style.cssText="padding:4px 0;font-size:12px";line.innerHTML=`<span class="tn" style="color:var(--sec)">${t}</span> ${e.message} ${e.delivered?"":'<span style="color:var(--sec)">· queued</span>'}`;w.appendChild(line);});}
+$("#btnAddRule").onclick=async()=>{const body={name:$("#arName").value.trim()||"Alert",metric:$("#arMetric").value.trim(),op:$("#arOp").value,threshold:parseFloat($("#arThresh").value),delivery:$("#arDelivery").value,dest:$("#arDest").value.trim()};if(!body.metric||isNaN(body.threshold)){$("#arStatus").textContent="Enter a metric and a numeric threshold.";return;}try{await post("/api/alerts/rules",body);$("#arStatus").textContent="Rule added.";$("#arName").value="";$("#arMetric").value="";$("#arThresh").value="";$("#arDest").value="";loadAlerts();}catch(e){$("#arStatus").textContent=e.status===402?"Alerts need a paid plan.":"Could not add rule.";}};
+
+async function loadKeys(){const gated=!planAllows("api")&&S.me&&S.me.auth_enforced;$("#keysGate").style.display=gated?"block":"none";$("#keysBody").style.display=gated?"none":"block";if(gated)return;try{renderKeys((await api("/api/keys")).keys||[]);}catch(e){}}
+function renderKeys(keys){const w=$("#keysList");w.innerHTML="";if(!keys.length){w.innerHTML='<div class="hint">No keys yet.</div>';return;}keys.forEach(k=>{const d=el("div");d.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--line)";d.innerHTML=`<div><b>${k.name}</b><div class="hint tn">${k.prefix}…</div></div>`;const del=el("button","btn sm","Revoke");del.onclick=async()=>{await post("/api/keys/revoke",{id:k.id});loadKeys();};d.appendChild(del);w.appendChild(d);});}
+$("#btnAddKey").onclick=async()=>{try{const k=await post("/api/keys/create",{name:$("#keyName").value.trim()||"default"});$("#newKey").innerHTML=`<div class="hint">Copy now — shown once:</div><code style="display:block;word-break:break-all;padding:8px;background:var(--fill);border-radius:8px;margin-top:4px">${k.key}</code>`;$("#keyName").value="";loadKeys();}catch(e){$("#newKey").innerHTML='<div class="hint">'+(e.status===402?"API keys need a paid plan.":"Could not create key.")+'</div>';}};
+$("#btnEnrollTok").onclick=async()=>{try{const r=await post("/api/nodes/enroll-token",{});const mins=Math.round((r.expires_in||3600)/60),b=S.base||location.origin;$("#enrollOut").innerHTML=`<div class="hint">One-time, expires in ${mins} min. The node redeems it once for its own key:</div><code style="display:block;word-break:break-all;padding:8px;background:var(--fill);border-radius:8px;margin-top:4px">curl -s ${b}/api/v1/enroll -H 'Content-Type: application/json' -d '{"enroll_token":"${r.enroll_token}","name":"my-node","domain":"aquaculture"}'</code><div class="hint" style="margin-top:6px">Returns a node key the node then sends as <code>X-Node-Key</code> on every report to <code>/api/v1/ingest</code>.</div>`;}catch(e){$("#enrollOut").innerHTML='<div class="hint">Sign in to mint an enrollment token.</div>';}};
 
 function applyTheme(t){if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",t);$("#themeBtn").textContent=t.charAt(0).toUpperCase()+t.slice(1);try{localStorage.setItem("terra_theme",t);}catch(e){}}
 function applyDensity(d){document.documentElement.setAttribute("data-density",d);$("#densBtn").textContent=d.charAt(0).toUpperCase()+d.slice(1);try{localStorage.setItem("terra_density",d);}catch(e){}}

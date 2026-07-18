@@ -39,6 +39,8 @@ from .core import TerraEngine, EngineConfig
 from .domains import DOMAINS
 from .control import Controller, policy_for
 from . import accounts as acc
+from . import alerts as alertmod
+from . import registry as reg
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 DATA_DIR = os.path.join(HOME, "data")
@@ -49,6 +51,26 @@ WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
 AUTH_ENFORCED = bool(os.environ.get("TERRA_AUTH"))
 LOCAL_USER = {"user_id": 0, "email": "local", "role": "owner", "workspace_id": 0,
               "workspace": "local", "plan": "pro", "raw_plan": "pro", "trial_ends": None}
+# the workspace/node this server instance reports under (a deployed single node
+# sets these; locally they default to the built-in workspace 0 / node "local")
+LOCAL_WS = int(os.environ.get("TERRA_WORKSPACE", "0"))
+LOCAL_NODE = os.environ.get("TERRA_NODE", "local")
+
+# login rate limiting: max failed attempts per identity within the window
+_LOGIN_FAILS: dict = {}
+LOGIN_MAX_FAILS = 6
+LOGIN_WINDOW = 300.0
+
+
+def _login_blocked(key: str) -> bool:
+    now = time.time()
+    hits = [t for t in _LOGIN_FAILS.get(key, []) if now - t < LOGIN_WINDOW]
+    _LOGIN_FAILS[key] = hits
+    return len(hits) >= LOGIN_MAX_FAILS
+
+
+def _login_fail(key: str):
+    _LOGIN_FAILS.setdefault(key, []).append(time.time())
 
 # nominal process input per domain when a log doesn't carry one
 NOMINAL_U = {"aquaculture": [0.22, 1.0], "soil": [0.5, 0.02, 0.0],
@@ -146,6 +168,9 @@ class Platform:
         self.rec = None
         self.hist_path = os.path.join(DATA_DIR, "history.jsonl")
         self.active_log = log_path or os.path.join(DATA_DIR, "active.csv")
+        self.workspace_id = LOCAL_WS
+        self.node_id = LOCAL_NODE
+        self._last_alert_eval = 0.0
         self._build_engine()
         self._load_initial_source()
         self.running = True
@@ -258,6 +283,30 @@ class Platform:
         self.i += 1
         self.cycles += 1
         self._persist(est)
+        self._watch(est)
+
+    def _metrics(self, est) -> dict:
+        channels = {k: (float(est.x[ch.state]) if ch.state is not None
+                        else float(ch.obs(est.x))) for k, ch in self.spec.channels.items()}
+        risks = {n: r["p"] for n, r in est.risks.items()}
+        hidden = est.hidden
+        h0 = next(iter(hidden.values())) if isinstance(hidden, dict) and hidden else None
+        return {"channels": channels, "risks": risks, "nis": est.nis, "hidden": h0}
+
+    def _watch(self, est):
+        """Evaluate alert rules and refresh this node's registry heartbeat."""
+        now = time.time()
+        if now - self._last_alert_eval < 2.0:   # don't hammer the DB every step
+            return
+        self._last_alert_eval = now
+        try:
+            m = self._metrics(est)
+            reg.touch_node(self.node_id, self.workspace_id, domain=self.cfg["domain"],
+                           status={"cycles": self.cycles, "nis": est.nis,
+                                   "autonomy": self.autonomy, "offline": self.offline})
+            alertmod.evaluate(self.workspace_id, self.node_id, m)
+        except Exception:
+            pass
 
     def _persist(self, est):
         rec = {"t": est.t, "cycles": self.cycles,
@@ -370,7 +419,11 @@ def make_handler(pf: Platform):
             self.send_header("Content-Type", ctype)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers",
+                             "Content-Type, Authorization, X-Node-Key, X-API-Key")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             if isinstance(body, (dict, list)):
                 body = json.dumps(body).encode()
@@ -396,6 +449,29 @@ def make_handler(pf: Platform):
             if u:
                 return u
             return None if AUTH_ENFORCED else dict(LOCAL_USER)
+
+        def _api_key(self):
+            k = self.headers.get("X-API-Key")
+            if k:
+                return k
+            h = self.headers.get("Authorization", "")
+            if h.startswith("Bearer ") and h[7:].startswith("sk_"):
+                return h[7:]
+            return None
+
+        def _api_user(self):
+            """Resolve a workspace from an API key, for the public /api/v1 surface."""
+            k = self._api_key()
+            if k:
+                ws = reg.verify_api_key(k)
+                if ws is not None:
+                    return acc.workspace_user(ws)
+            return None if AUTH_ENFORCED else dict(LOCAL_USER)
+
+        def _ws(self):
+            """Workspace id for the signed-in user, or the local workspace."""
+            u = self._user()
+            return u.get("workspace_id") if u else LOCAL_WS
 
         def _gate(self, feature):
             u = self._user()
@@ -429,6 +505,39 @@ def make_handler(pf: Platform):
                 if not (u and acc.has_feature(u, "history")):
                     n = min(n, acc.FREE_HISTORY_ROWS)
                 return self._send(200, pf.history(n))
+            if p == "/api/fleet":
+                ws = self._ws()
+                nodes = reg.list_nodes(ws)
+                for nd in nodes:
+                    nd["alerts_1h"] = alertmod.active_count(ws, nd["node_id"])
+                return self._send(200, {"nodes": nodes})
+            if p == "/api/alerts/rules":
+                if self._gate("alerts") is None:
+                    return
+                return self._send(200, {"rules": alertmod.list_rules(self._ws())})
+            if p == "/api/alerts/events":
+                if self._gate("alerts") is None:
+                    return
+                n = int(q.get("n", ["50"])[0])
+                return self._send(200, {"events": alertmod.list_events(self._ws(), n)})
+            if p == "/api/keys":
+                if self._gate("api") is None:
+                    return
+                return self._send(200, {"keys": reg.list_api_keys(self._ws())})
+            if p == "/api/v1/status":
+                u = self._api_user()
+                if u is None:
+                    return self._send(401, {"error": "provide an API key"})
+                if not acc.has_feature(u, "api"):
+                    return self._send(402, {"error": "API access needs a paid plan"})
+                return self._send(200, pf.status())
+            if p == "/api/v1/history":
+                u = self._api_user()
+                if u is None:
+                    return self._send(401, {"error": "provide an API key"})
+                if not acc.has_feature(u, "api"):
+                    return self._send(402, {"error": "API access needs a paid plan"})
+                return self._send(200, pf.history(int(q.get("n", ["200"])[0])))
             if p == "/api/export":
                 self.send_response(200)
                 self.send_header("Content-Type", "text/csv")
@@ -468,9 +577,14 @@ def make_handler(pf: Platform):
                 return self._send(200, {"token": r["token"],
                                         "user": acc.session_user(r["token"])})
             if p == "/api/auth/login":
+                ident = (data.get("email") or "").strip().lower() or self.client_address[0]
+                if _login_blocked(ident):
+                    return self._send(429, {"error": "too many attempts — wait a few minutes"})
                 tok = acc.login(data.get("email"), data.get("password"))
                 if not tok:
+                    _login_fail(ident)
                     return self._send(401, {"error": "invalid email or password"})
+                _LOGIN_FAILS.pop(ident, None)
                 return self._send(200, {"token": tok, "user": acc.session_user(tok)})
             if p == "/api/auth/logout":
                 t = self._token()
@@ -503,6 +617,66 @@ def make_handler(pf: Platform):
                 if self._gate("calibrate") is None:
                     return
                 return self._send(200, pf.calibrate())
+            if p == "/api/alerts/rules":
+                if self._gate("alerts") is None:
+                    return
+                try:
+                    rid = alertmod.create_rule(
+                        self._ws(), data.get("name") or "Alert", data.get("metric"),
+                        data.get("op", ">"), float(data.get("threshold", 0)),
+                        node_id=data.get("node_id", "*"),
+                        delivery=data.get("delivery", "none"), dest=data.get("dest", ""),
+                        cooldown=int(data.get("cooldown", alertmod.DEFAULT_COOLDOWN)))
+                except (ValueError, TypeError) as e:
+                    return self._send(400, {"error": str(e)})
+                return self._send(200, {"id": rid, "rules": alertmod.list_rules(self._ws())})
+            if p == "/api/alerts/rules/delete":
+                if self._gate("alerts") is None:
+                    return
+                alertmod.delete_rule(self._ws(), int(data.get("id", 0)))
+                return self._send(200, {"rules": alertmod.list_rules(self._ws())})
+            if p == "/api/alerts/rules/toggle":
+                if self._gate("alerts") is None:
+                    return
+                alertmod.set_enabled(self._ws(), int(data.get("id", 0)),
+                                     bool(data.get("enabled")))
+                return self._send(200, {"rules": alertmod.list_rules(self._ws())})
+            if p == "/api/keys/create":
+                if self._gate("api") is None:
+                    return
+                k = reg.create_api_key(self._ws(), data.get("name", "default"))
+                return self._send(200, k)   # full key returned once
+            if p == "/api/keys/revoke":
+                if self._gate("api") is None:
+                    return
+                reg.revoke_api_key(self._ws(), int(data.get("id", 0)))
+                return self._send(200, {"keys": reg.list_api_keys(self._ws())})
+            if p == "/api/nodes/enroll-token":
+                u = self._user()
+                if not u:
+                    return self._send(401, {"error": "sign in first"})
+                tok = reg.create_enroll_token(u["workspace_id"])
+                return self._send(200, {"enroll_token": tok, "expires_in": reg.ENROLL_TOKEN_TTL})
+            if p == "/api/v1/enroll":
+                r = reg.enroll_node(data.get("enroll_token"), data.get("node_id"),
+                                    data.get("name"), data.get("domain"))
+                if not r:
+                    return self._send(401, {"error": "invalid or expired enrollment token"})
+                return self._send(200, r)   # node_key returned once
+            if p == "/api/v1/ingest":
+                nid = data.get("node_id") or self.headers.get("X-Node-Id")
+                ws = reg.verify_node_key(nid, self.headers.get("X-Node-Key", ""))
+                if ws is None:
+                    ws = self._api_user() and self._api_user().get("workspace_id")
+                if ws is None:
+                    return self._send(401, {"error": "provide a valid node key or API key"})
+                reg.touch_node(nid or "node", ws, name=data.get("name"),
+                               domain=data.get("domain"), status=data.get("status"))
+                if data.get("metrics"):
+                    alertmod.evaluate(ws, nid or "node", data["metrics"])
+                if data.get("csv"):
+                    pf.ingest(data["csv"], f"{nid or 'node'}.csv")
+                return self._send(200, {"ok": True, "node_id": nid, "workspace_id": ws})
             return self._send(404, {"error": "not found"})
     return H
 

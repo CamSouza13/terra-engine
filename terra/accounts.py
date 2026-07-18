@@ -139,6 +139,19 @@ def session_user(token: str) -> dict | None:
             "trial_ends": ws["trial_ends"]}
 
 
+def workspace_user(workspace_id: int) -> dict | None:
+    """A user-shaped dict for a workspace, for API-key (non-human) access."""
+    c = _conn()
+    ws = c.execute("SELECT * FROM workspaces WHERE id=?", (workspace_id,)).fetchone()
+    c.close()
+    if not ws:
+        return None
+    return {"user_id": 0, "email": "apikey", "role": "service",
+            "workspace_id": ws["id"], "workspace": ws["name"],
+            "plan": effective_plan(ws), "raw_plan": ws["plan"],
+            "trial_ends": ws["trial_ends"]}
+
+
 def effective_plan(ws) -> str:
     plan = ws["plan"]
     if plan == "trial" and ws["trial_ends"] and ws["trial_ends"] < time.time():
