@@ -16,5 +16,8 @@ dependencies = ["numpy>=1.23"]
 plots = ["matplotlib>=3.6"]
 calibrate = ["jax>=0.4.20", "numpyro>=0.13"]
 
+[project.scripts]
+terra = "terra.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["terra*"]

@@ -35,8 +35,20 @@ jobs:
       - name: Run controller tests
         run: python tests/test_control.py
 
+      - name: Run validation tests
+        run: python tests/test_validate.py
+
+      - name: Run diagnostics tests
+        run: python tests/test_diagnostics.py
+
+      - name: Run CLI tests
+        run: python tests/test_cli.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
+
+      - name: Smoke-test the CLI
+        run: python -m terra.cli validate --domain aquaculture
 
   calibrate:
     name: Bayesian calibration (optional extra)

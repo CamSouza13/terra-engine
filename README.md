@@ -56,7 +56,20 @@ pip install numpy matplotlib          # matplotlib only needed for plots
 python scripts/run_demo.py            # run all four domains + a sensor-dropout demo
 python scripts/run_demo.py --domain blss --no-plot
 python tests/test_engine.py           # 8 tests, no framework required
+
+pip install -e .                      # then use the CLI:
+terra domains                         # list domains
+terra demo --domain aquaculture       # run a domain, print the event log
+terra validate --domain soil          # score engine vs ground truth + baseline
 ```
+
+### Validation
+
+`terra validate` (or `terra.validate.run_validation`) scores the engine against
+ground truth: hidden-state RMSE, 95% credible-band coverage, and how many hours
+earlier it warns of a breach than a raw-gauge baseline. See
+[`docs/VALIDATION.md`](docs/VALIDATION.md). The full build backlog lives in
+[`ROADMAP.md`](ROADMAP.md).
 
 ### Minimal usage
 
@@ -132,18 +145,24 @@ terra/
   ukf.py                  # Unscented Kalman Filter (variable channels)
   control.py              # controller: forecast -> recommended/enacted action
   ingest.py               # replay logged sensor CSVs through a domain
+  validate.py             # score engine vs ground truth: RMSE, coverage, lead time
+  baselines.py            # raw-gauge threshold baseline for benchmarking
+  diagnostics.py          # pure-numpy split-R-hat / ESS
+  cli.py                  # the `terra` command
   domains/
     aquaculture.py        # RAS nitrogen loop
     soil.py               # root-zone nitrogen / CEA
     bioremediation.py     # in-situ contaminant drawdown
     blss.py               # closed-habitat air loop
   calibrate/              # OPTIONAL offline parameter fit (jax/numpyro, off-edge)
-    jax_models.py         # differentiable mirror of a domain's dynamics
-    nuts.py               # RK4 rollout + NUTS parameter posterior
+    spec.py               # CalModel: the calibratable-model description
+    models.py             # differentiable models for all four domains + registry
+    nuts.py               # RK4 rollout + NUTS posterior, drift, close-the-loop
 scripts/
   run_demo.py             # multi-domain demo + plots + sensor dropout
   run_csv.py              # replay a CSV log through a domain
   run_calibrate.py        # fit kinetics from a run, apply to the edge engine
+  run_close_loop.py       # log -> calibrated spec -> tuned edge estimator
   make_sample_csv.py      # emit an example log with a known fault
 tests/
   test_engine.py          # generic + per-domain tests
