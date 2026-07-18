@@ -96,6 +96,11 @@ def cmd_node(args) -> int:
     return 0
 
 
+def cmd_serve(args) -> int:
+    from terra.server import serve
+    return serve(domain=args.domain, port=args.port, autonomy=args.autonomy)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="terra", description="Terra Engine CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -121,6 +126,12 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--cycles", type=int, default=None)
     n.add_argument("--selftest", action="store_true", help="run bring-up self-test")
     n.set_defaults(func=cmd_node)
+
+    s = sub.add_parser("serve", help="serve the live engine API + web console")
+    s.add_argument("--domain", default="aquaculture")
+    s.add_argument("--port", type=int, default=8700)
+    s.add_argument("--autonomy", action="store_true", help="enact actions autonomously")
+    s.set_defaults(func=cmd_serve)
 
     return p
 

@@ -44,6 +44,9 @@ include = ["terra*"]
 [tool.setuptools.dynamic]
 version = { attr = "terra.__version__" }
 
+[tool.setuptools.package-data]
+terra = ["web/*.html"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
