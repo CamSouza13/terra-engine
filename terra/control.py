@@ -17,7 +17,7 @@ claim to have acted. Actuation on real hardware is always operator-gated.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 import numpy as np
 

@@ -29,17 +29,16 @@ system. Checked items are in the repo today.
 
 ## Inference robustness & trust
 
-- [ ] Surface R-hat / ESS / divergences from every NUTS fit and fail loudly on poor mixing
-      (numpy diagnostics exist; wire them into `fit_nuts` output)
+- [x] Surface R-hat / ESS from every NUTS fit (`CalibrationResult.diagnostics()` / `converged()`, printed by the CLI)
 - [ ] Posterior predictive checks and a per-site identifiability report
-- [ ] Propagate parameter posterior into the forecast (not just point estimates)
+- [x] Propagate parameter posterior into the forecast (`EngineConfig.param_draws`; `mc_forecast` marginalises over draws)
 - [ ] Variational inference path (fast, edge-friendly) — claimed on the site, not built
 - [ ] Simulation-based inference (SBI) for novel sensor regimes — claimed, not built
 - [ ] Online joint state + parameter estimation (adaptive kinetics on the edge)
 
 ## Sensor & process-model realism
 
-- [ ] Richer drift/fouling models: exponential fouling, recalibration steps, stuck sensors, outliers
+- [~] Richer drift/fouling models: exponential fouling, recalibration steps, stuck sensors (spike/outlier rejection done via `EngineConfig.outlier_sigma`)
 - [ ] Irregular / multi-rate timestamps and sensor-lag alignment (fit currently assumes ~uniform dt)
 - [ ] Nonlinear / known sensor response curves beyond linear scale+offset
 - [ ] Temperature and pH dependence of kinetics; mechanistic hidden-failure models
@@ -49,9 +48,9 @@ system. Checked items are in the repo today.
 
 - [ ] Hardware driver layer (I2C / serial) feeding `engine.step` (abstraction + `SimulatedDriver` done; real driver TODO)
 - [x] Daemon / service runtime: systemd unit, watchdog (Restart), atomic state persistence, self-test (`terra/node/`, `deploy/`)
-- [ ] Actuator interface so the controller can drive pumps/dosing, behind the autonomy gate, with an audit log
+- [x] Actuator interface behind the autonomy gate with an audit log (`terra/node/actuator.py`, wired into the node loop)
 - [ ] On-device performance + memory benchmarking on Pi-class hardware
-- [ ] Offline resilience: buffering, store-and-forward
+- [x] Offline resilience: store-and-forward outbox that buffers offline and flushes on reconnect
 - [x] Node hardware spec + BOM + build-vs-buy + Terra-branded board plan (`docs/HARDWARE.md`)
 
 ## Control-layer maturity
@@ -65,7 +64,7 @@ system. Checked items are in the repo today.
 - [x] Unified CLI
 - [ ] PyPI packaging, versioned releases, changelog
 - [ ] Live dashboard from a running node (current `simulation.html` is static)
-- [ ] Lint + type-check in CI (ruff / mypy), coverage reporting
+- [x] Lint in CI (ruff); type-check (mypy) and coverage reporting still TODO
 - [ ] SystemSpec authoring guide (see `docs/SYSTEMSPEC.md`)
 
 ## Notes

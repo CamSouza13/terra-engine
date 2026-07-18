@@ -122,6 +122,9 @@ class EngineConfig:
     nis_alert_per_channel: float = 4.0   # ~ chi-sq/dof threshold
     risk_alert: float = 0.30
     seed: int = 3
+    outlier_sigma: float | None = None   # gate |innovation| > k·std; None = off
+    param_draws: list | None = None      # posterior param samples to marginalise
+                                         # the forecast over (calibration output)
 
 
 class TerraEngine:
@@ -165,6 +168,20 @@ class TerraEngine:
         used = [c for c in self.spec.channels
                 if c in measurements and measurements[c] is not None
                 and np.isfinite(measurements[c])]
+        # robust gate: drop channels whose innovation is implausibly large
+        # (sensor spike / dropout glitch), judged against the predicted
+        # innovation std. Off by default (outlier_sigma=None).
+        if used and self.cfg.outlier_sigma is not None:
+            xp = self.ukf.x
+            kept = []
+            for c in used:
+                ch = self.spec.channels[c]
+                var = ch.noise ** 2
+                if ch.state is not None:
+                    var += max(self.ukf.P[ch.state, ch.state], 0.0)
+                if abs(measurements[c] - ch.obs(xp)) <= self.cfg.outlier_sigma * np.sqrt(var):
+                    kept.append(c)
+            used = kept
         if used:
             z = np.array([measurements[c] for c in used], float)
             chans = [self.spec.channels[c] for c in used]
@@ -193,7 +210,8 @@ class TerraEngine:
         return est
 
     def _forecast(self, x, P, u) -> dict[str, dict]:
-        return mc_forecast(self.spec, self.cfg, self._rng, x, P, u)
+        return mc_forecast(self.spec, self.cfg, self._rng, x, P, u,
+                           param_draws=self.cfg.param_draws)
 
     def _log(self, e: Estimate) -> None:
         s = self.spec
@@ -236,32 +254,51 @@ class TerraEngine:
 
 # ---- Monte-Carlo forecast (shared by the engine and the controller) ----------
 
-def mc_forecast(spec: SystemSpec, cfg: "EngineConfig", rng, x, P, u) -> dict[str, dict]:
+def mc_forecast(spec: SystemSpec, cfg: "EngineConfig", rng, x, P, u,
+                param_draws=None) -> dict[str, dict]:
     """Propagate the posterior forward under input `u`; return per-target breach
     probability, expected crossing time, and current level. Pure in `rng`, so a
     controller can evaluate candidate actions with its own generator without
-    disturbing the live filter."""
+    disturbing the live filter.
+
+    If `param_draws` is given (a list of posterior parameter samples from the
+    calibration layer), the forecast is marginalised over them: the state
+    samples are partitioned across the draws so the returned breach probability
+    reflects parameter uncertainty as well as state uncertainty."""
     if not spec.safety:
         return {}
     H, n, dt = cfg.forecast_horizon_h, cfg.forecast_samples, cfg.forecast_dt
     try:
-        X = rng.multivariate_normal(x, P, size=n)
+        X0 = rng.multivariate_normal(x, P, size=n)
     except np.linalg.LinAlgError:
-        X = x + rng.normal(size=(n, len(x))) * np.sqrt(np.diag(P))
+        X0 = x + rng.normal(size=(n, len(x))) * np.sqrt(np.diag(P))
     if spec.nonneg is not None:
-        X[:, spec.nonneg] = np.clip(X[:, spec.nonneg], 0.0, None)
+        X0[:, spec.nonneg] = np.clip(X0[:, spec.nonneg], 0.0, None)
 
+    draws = list(param_draws) if param_draws else [spec.params]
     steps = int(round(H / dt))
     crossed = {s.name: np.zeros(n, bool) for s in spec.safety}
     ctime = {s.name: np.full(n, np.nan) for s in spec.safety}
-    for k in range(1, steps + 1):
-        X = rk4_batch(X, dt, spec.deriv_batch, u, spec.params, spec.nonneg)
+
+    for gi, idx in enumerate(np.array_split(np.arange(n), len(draws))):
+        if len(idx) == 0:
+            continue
+        params = draws[gi]
+        Xg = X0[idx].copy()
+        gcross = {s.name: np.zeros(len(idx), bool) for s in spec.safety}
+        gtime = {s.name: np.full(len(idx), np.nan) for s in spec.safety}
+        for k in range(1, steps + 1):
+            Xg = rk4_batch(Xg, dt, spec.deriv_batch, u, params, spec.nonneg)
+            for s in spec.safety:
+                lv = s.value(Xg.T, params, spec.env)
+                hit = (lv > s.limit) if s.direction == ">" else (lv < s.limit)
+                newly = (~gcross[s.name]) & hit
+                gtime[s.name][newly] = k * dt
+                gcross[s.name] |= hit
         for s in spec.safety:
-            lv = s.value(X.T, spec.params, spec.env)
-            hit = (lv > s.limit) if s.direction == ">" else (lv < s.limit)
-            newly = (~crossed[s.name]) & hit
-            ctime[s.name][newly] = k * dt
-            crossed[s.name] |= hit
+            crossed[s.name][idx] = gcross[s.name]
+            ctime[s.name][idx] = gtime[s.name]
+
     out = {}
     for s in spec.safety:
         c = crossed[s.name]

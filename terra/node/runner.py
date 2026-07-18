@@ -28,6 +28,7 @@ BANNER = r"""
 @dataclass
 class NodeConfig:
     state_path: str = "terra_node_state.json"
+    buffer_path: str = "terra_node_buffer.json"   # store-and-forward outbox
     max_cycles: int | None = None
     sleep_s: float = 0.0          # wall-clock pacing; 0 for replay/tests
     persist_every: int = 1        # write state every N cycles
@@ -35,13 +36,20 @@ class NodeConfig:
 
 class NodeRunner:
     def __init__(self, spec, driver, config: NodeConfig | None = None,
-                 engine_config: EngineConfig | None = None):
+                 engine_config: EngineConfig | None = None,
+                 sink=None, controller=None, actuator=None):
         self.spec = spec
         self.driver = driver
         self.cfg = config or NodeConfig()
         self.engine = TerraEngine(spec, engine_config or EngineConfig())
+        self.sink = sink              # callable(record) -> None; may raise if offline
+        self.controller = controller  # optional terra.control.Controller
+        self.actuator = actuator      # optional terra.node.ActuatorDriver
+        self.recommendations: list = []
+        self.buffer: list = []        # store-and-forward outbox
         self.cycles = 0               # lifetime cycles (persisted)
         self._load_state()
+        self._load_buffer()
 
     # ---- state persistence (atomic) ----
     def _load_state(self) -> None:
@@ -69,6 +77,40 @@ class NodeRunner:
             json.dump(d, f)
         os.replace(tmp, self.cfg.state_path)    # atomic swap
 
+    # ---- store-and-forward outbox ----
+    def _load_buffer(self) -> None:
+        p = self.cfg.buffer_path
+        if os.path.exists(p):
+            try:
+                with open(p) as f:
+                    self.buffer = json.load(f)
+            except Exception:
+                self.buffer = []
+
+    def _save_buffer(self) -> None:
+        tmp = self.cfg.buffer_path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(self.buffer, f)
+        os.replace(tmp, self.cfg.buffer_path)
+
+    def _emit(self, record: dict) -> None:
+        """Queue a record for the sink; buffer and persist if the sink is offline."""
+        if self.sink is None:
+            return                              # nowhere to forward: don't buffer
+        self.buffer.append(record)
+        self._flush()
+
+    def _flush(self) -> None:
+        if self.sink is None:
+            return
+        while self.buffer:
+            try:
+                self.sink(self.buffer[0])
+            except Exception:
+                break                           # offline: keep the rest buffered
+            self.buffer.pop(0)
+        self._save_buffer()
+
     # ---- the service loop ----
     def run(self, on_event=None, banner: bool = False) -> dict:
         if banner:
@@ -78,12 +120,23 @@ class NodeRunner:
         seen = len(self.engine.events)
         run_cycles = 0
         for t, dt, meas, u in self.driver.steps():
-            self.engine.step(t, dt, meas, u, u_forecast=uf)
+            est = self.engine.step(t, dt, meas, u, u_forecast=uf)
             self.cycles += 1
             run_cycles += 1
+            # controller: recommend, and enact if authorized + an actuator is wired
+            if self.controller is not None:
+                rec = self.controller.recommend(est, u)
+                if rec is not None:
+                    self.recommendations.append(rec)
+                    if rec.enacted and self.actuator is not None:
+                        self.actuator.apply(rec)
+                    self.engine.events.append(
+                        (t, "ACTION" if rec.enacted else "ADVICE", rec.message()))
+            # surface + forward new events (store-and-forward if the sink is offline)
             for ev in self.engine.events[seen:]:
                 if on_event:
                     on_event(ev)
+                self._emit({"t": ev[0], "level": ev[1], "msg": ev[2]})
             seen = len(self.engine.events)
             if run_cycles % self.cfg.persist_every == 0:
                 self._save_state()
@@ -91,6 +144,7 @@ class NodeRunner:
                 time.sleep(self.cfg.sleep_s)
             if self.cfg.max_cycles and run_cycles >= self.cfg.max_cycles:
                 break
+        self._flush()
         self._save_state()
         return {"cycles": self.cycles, "run_cycles": run_cycles,
-                "events": len(self.engine.events)}
+                "events": len(self.engine.events), "buffered": len(self.buffer)}

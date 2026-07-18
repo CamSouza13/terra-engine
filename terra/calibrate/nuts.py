@@ -116,6 +116,18 @@ class CalibrationResult:
         return {k[len("drift_"):]: float(np.median(v))
                 for k, v in self.samples.items() if k.startswith("drift_")}
 
+    def diagnostics(self) -> dict:
+        """Convergence diagnostics per parameter: split-R-hat and ESS.
+
+        R-hat near 1.0 (and a healthy ESS) means the chain mixed; R-hat above
+        ~1.1 means the fit did not converge and the posterior is untrustworthy.
+        """
+        from ..diagnostics import report
+        return report(self.samples)
+
+    def converged(self, rhat_max: float = 1.1) -> bool:
+        return all(d["rhat"] < rhat_max for d in self.diagnostics().values())
+
     def apply_to(self, params: Any) -> Any:
         """Return a copy of a dataclass params object with fitted values set.
 

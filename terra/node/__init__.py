@@ -11,7 +11,8 @@ I2C/analog driver to go live.
 """
 from .driver import SensorDriver, SimulatedDriver
 from .runner import NodeRunner, NodeConfig
+from .actuator import ActuatorDriver, SimulatedActuatorDriver
 from .selftest import self_test
 
 __all__ = ["SensorDriver", "SimulatedDriver", "NodeRunner", "NodeConfig",
-           "self_test"]
+           "ActuatorDriver", "SimulatedActuatorDriver", "self_test"]

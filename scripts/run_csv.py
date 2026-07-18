@@ -12,7 +12,6 @@ import argparse
 import os
 import sys
 
-import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -45,7 +44,6 @@ def main():
         config=CFG[args.domain],
     )
 
-    hi = spec.idx(spec.hidden)
     last = res.estimates[-1]
     print(f"replayed {len(res.estimates)} rows over {res.t[-1]:.1f} h")
     print(f"final hidden [{spec.hidden}] = {last.hidden:.2f} "

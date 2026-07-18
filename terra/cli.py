@@ -70,6 +70,9 @@ def cmd_calibrate(args) -> int:
         spec, sim["t"], sim["u"], sim["meas"],
         num_warmup=args.warmup, num_samples=args.samples)
     res.print_report()
+    print("\nConvergence (split-R-hat / ESS):")
+    for k, d in res.diagnostics().items():
+        print(f"  {k:6}  rhat={d['rhat']:.3f}  ess={d['ess']:.0f}")
     return 0
 
 

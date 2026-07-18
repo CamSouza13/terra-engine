@@ -52,6 +52,11 @@ def main() -> int:
     print("\nPosterior vs ground truth:")
     res.print_report(truth=truth)
 
+    print("\nConvergence (split-R-hat / ESS):")
+    for k, d in res.diagnostics().items():
+        flag = "" if d["rhat"] < 1.1 else "  <-- not converged"
+        print(f"  {k:6}  rhat={d['rhat']:.3f}  ess={d['ess']:.0f}{flag}")
+
     fitted = res.apply_to(spec.params)
     print("\nApplied to edge engine RASParams:")
     print(f"  k1 {spec.params.k1:.2f} -> {fitted.k1:.2f}   "

@@ -46,7 +46,6 @@ def run_domain(name):
 def report(name, spec, sim, eng, est):
     hi = spec.idx(spec.hidden)
     truth = sim["truth"]
-    est_x = np.array([e.x for e in est])
     print("=" * 72)
     print(f"DOMAIN: {name}    ({sim['fault']})")
     print("=" * 72)
