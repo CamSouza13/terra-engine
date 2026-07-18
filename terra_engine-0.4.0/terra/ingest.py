@@ -44,7 +44,7 @@ def load_csv(path: str, time_col: str = "t") -> tuple[list[str], list[dict]]:
         header = reader.fieldnames or []
     if time_col not in header:
         raise ValueError(f"time column {time_col!r} not found; have {header}")
-    return list(header), rows
+    return header, rows
 
 
 @dataclass

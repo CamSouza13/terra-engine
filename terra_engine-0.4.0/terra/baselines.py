@@ -55,7 +55,7 @@ def threshold_alarm(spec, sim) -> dict:
     x = np.array(spec.x0, float)
     times = sim["t"]
     meas = sim["meas"]
-    first: dict = {s.name: None for s in spec.safety}
+    first = {s.name: None for s in spec.safety}
     for i, t in enumerate(times):
         row = meas[i] if i < len(meas) else {}
         for si, ch in idmap.items():
@@ -76,7 +76,7 @@ def true_breach_times(spec, sim) -> dict:
     """First time each safety target truly breaches, from the simulator truth."""
     truth = sim["truth"]
     times = sim["t"]
-    out: dict = {s.name: None for s in spec.safety}
+    out = {s.name: None for s in spec.safety}
     for i, t in enumerate(times):
         levels = _eval_safety(spec, np.asarray(truth[i], float))
         for s in spec.safety:

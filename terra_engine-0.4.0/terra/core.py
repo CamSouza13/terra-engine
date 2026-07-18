@@ -67,7 +67,7 @@ class Channel:
 class SafetyTarget:
     """A quantity to forecast a probability of breaching."""
     name: str
-    value: Callable[[np.ndarray, Any, dict], Any]  # (x, params, env) -> level(s)
+    value: Callable[[np.ndarray, Any, dict], float]  # (x, params, env) -> level
     limit: float
     direction: str = ">"              # ">" breach when above, "<" when below
     units: str = ""
@@ -139,8 +139,8 @@ class TerraEngine:
             Q=np.diag(np.asarray(spec.process_std, float) ** 2),
             alpha=1e-3, beta=2.0,
         )
-        self.ukf.x = np.array(spec.x0, float)  # type: ignore[assignment]
-        self.ukf.P = np.array(spec.P0, float)  # type: ignore[assignment]
+        self.ukf.x = np.array(spec.x0, float)
+        self.ukf.P = np.array(spec.P0, float)
         self._rng = np.random.default_rng(self.cfg.seed)
         self.history: list[Estimate] = []
         self.events: list[tuple[float, str, str]] = []
@@ -342,8 +342,8 @@ def simulate_truth(
         us.append(u)
         x = rk4(x, dt, spec.deriv, u, spec.params, spec.nonneg)
         t += dt
-    ts = np.array(ts)  # type: ignore[assignment]
-    X = np.array(X)    # type: ignore[assignment]
+    ts = np.array(ts)
+    X = np.array(X)
 
     step = max(int(round(sensor_dt / dt)), 1)
     idx = np.arange(0, len(ts), step)

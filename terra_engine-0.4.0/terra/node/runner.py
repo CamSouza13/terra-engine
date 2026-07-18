@@ -59,8 +59,8 @@ class NodeRunner:
         try:
             with open(p) as f:
                 d = json.load(f)
-            self.engine.ukf.x = np.array(d["x"], float)  # type: ignore[assignment]
-            self.engine.ukf.P = np.array(d["P"], float)  # type: ignore[assignment]
+            self.engine.ukf.x = np.array(d["x"], float)
+            self.engine.ukf.P = np.array(d["P"], float)
             self.cycles = int(d.get("cycles", 0))
         except Exception:
             pass                      # corrupt/partial state: start clean

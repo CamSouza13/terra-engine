@@ -1,0 +1,35 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Courier New',monospace">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+    <stop offset="0%" stop-color="#0a151a"/><stop offset="60%" stop-color="#05090c"/><stop offset="100%" stop-color="#04070a"/>
+  </radialGradient>
+  <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#7fffd4"/><stop offset="50%" stop-color="#4ade80"/><stop offset="100%" stop-color="#22d3ee"/>
+  </linearGradient>
+  <radialGradient id="core" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#4ade80" stop-opacity="0.85"/>
+    <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="1280" height="720" fill="url(#bg)"/>
+
+<!-- closed-loop mark -->
+<g transform="translate(640,300)">
+  <circle cx="0" cy="0" r="150" fill="url(#core)"/>
+  <circle cx="0" cy="0" r="120" fill="none" stroke="url(#ring)" stroke-width="2.5"/>
+  <circle cx="0" cy="-120" r="5" fill="#22d3ee"/>
+  <circle cx="0" cy="120" r="5" fill="#7fffd4"/>
+  <circle cx="-104" cy="60" r="4" fill="#4ade80"/>
+  <circle cx="104" cy="60" r="4" fill="#4ade80"/>
+  <circle cx="-104" cy="-60" r="4" fill="#4ade80"/>
+  <circle cx="104" cy="-60" r="4" fill="#4ade80"/>
+  <circle cx="0" cy="0" r="42" fill="#04120c" stroke="#4ade80" stroke-width="1.4"/>
+  <text x="0" y="6" text-anchor="middle" font-size="20" fill="#e9f2ec" font-family="'Space Grotesk',sans-serif" font-weight="700">TLK</text>
+</g>
+
+<!-- wordmark -->
+<text x="640" y="520" text-anchor="middle" font-size="30" letter-spacing="10" fill="#4ade80" font-weight="700">TERRA LABS</text>
+<line x1="540" y1="540" x2="740" y2="540" stroke="#2f6b57" stroke-width="1"/>
+<text x="640" y="576" text-anchor="middle" font-size="16" letter-spacing="4" fill="#8aa093">TLK EDGE NODE · AUTONOMOUS BIOGEOCHEMICAL CONTROL</text>
+<text x="640" y="620" text-anchor="middle" font-size="13" letter-spacing="3" fill="#5b6b62">from the mud to the moon</text>
+</svg>

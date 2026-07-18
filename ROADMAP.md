@@ -52,6 +52,7 @@ system. Checked items are in the repo today.
 - [ ] On-device performance + memory benchmarking on Pi-class hardware
 - [x] Offline resilience: store-and-forward outbox that buffers offline and flushes on reconnect
 - [x] Node hardware spec + BOM + build-vs-buy + Terra-branded board plan (`docs/HARDWARE.md`)
+- [x] Branded Raspberry Pi node image assets + provisioning recipe (`deploy/image/`)
 
 ## Control-layer maturity
 
@@ -62,10 +63,10 @@ system. Checked items are in the repo today.
 ## Product surfaces & ops
 
 - [x] Unified CLI
-- [ ] PyPI packaging, versioned releases, changelog
+- [x] PyPI packaging (dynamic version, metadata) + tagged-release workflow (`.github/workflows/release.yml`); changelog still TODO
 - [ ] Live dashboard from a running node (current `simulation.html` is static)
-- [x] Lint in CI (ruff); type-check (mypy) and coverage reporting still TODO
-- [ ] SystemSpec authoring guide (see `docs/SYSTEMSPEC.md`)
+- [x] Lint (ruff), type-check (mypy), and coverage all run in the CI quality job
+- [x] SystemSpec authoring guide (`docs/SYSTEMSPEC.md`)
 
 ## Notes
 

@@ -1,0 +1,10 @@
+
+  =====================================================================
+   T E R R A   L A B S   ·   TLK edge node
+   autonomous biogeochemical control  ·  from the mud to the moon
+  =====================================================================
+
+   service :  systemctl status terra-node
+   logs    :  journalctl -u terra-node -f
+   self-test: terra node --selftest
+

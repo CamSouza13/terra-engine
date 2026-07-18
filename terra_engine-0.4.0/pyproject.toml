@@ -52,19 +52,3 @@ target-version = "py310"
 select = ["E", "F", "W"]
 # stylistic rules the codebase intentionally uses (compact one-liners, lambdas)
 ignore = ["E501", "E701", "E702", "E731", "E741", "E722"]
-
-[tool.mypy]
-python_version = "3.10"
-ignore_missing_imports = true    # numpy/jax/numpyro have partial or no stubs
-check_untyped_defs = false       # the codebase is intentionally lightly typed
-warn_redundant_casts = true
-no_implicit_optional = false
-exclude = ["build/", "dist/"]
-
-[tool.coverage.run]
-source = ["terra"]
-omit = ["terra/calibrate/*"]     # jax layer isn't exercised in the numpy suite
-
-[tool.coverage.report]
-show_missing = false
-fail_under = 70

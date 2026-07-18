@@ -9,7 +9,9 @@ outputs/
 .DS_Store
 .pytest_cache/
 .ipynb_checkpoints/
-docs/assets/_briefprev-*.jpg
-docs/assets/_herocheck.jpg
+docs/assets/_*.jpg
 terra_node_state.json
 terra_node_buffer.json
+.coverage
+dist/
+build/

@@ -57,8 +57,7 @@ python scripts/run_demo.py            # run all four domains + a sensor-dropout 
 python scripts/run_demo.py --domain blss --no-plot
 python tests/test_engine.py           # 8 tests, no framework required
 
-pip install -e .                      # or: pip install terra-engine (on release)
-# extras: pip install -e ".[calibrate]"  (jax fit) · ".[dev]" (ruff/mypy/coverage)
+pip install -e .                      # then use the CLI:
 terra domains                         # list domains
 terra demo --domain aquaculture       # run a domain, print the event log
 terra validate --domain soil          # score engine vs ground truth + baseline

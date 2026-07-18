@@ -87,15 +87,19 @@ jobs:
           JAX_ENABLE_X64: "1"
         run: python scripts/run_calibrate.py --hours 12 --warmup 80 --samples 80
 
-  lint:
-    name: Lint (ruff)
+  quality:
+    name: Quality (ruff, mypy, coverage)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install ruff
-        run: pip install ruff
-      - name: Ruff check
+      - name: Install tooling
+        run: pip install numpy ruff mypy coverage
+      - name: Ruff
         run: ruff check terra tests scripts
+      - name: Mypy
+        run: mypy terra
+      - name: Coverage
+        run: bash scripts/coverage.sh

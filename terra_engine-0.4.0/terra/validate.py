@@ -72,17 +72,17 @@ def run_validation(spec, sim, config: EngineConfig | None = None) -> ValidationR
         if est.used_channels:
             nis.append(est.nis / max(len(est.used_channels), 1))
 
-    a_est = np.array(hid_est)
-    a_std = np.array(hid_std)
-    a_true = np.array(hid_true)
-    rmse = float(np.sqrt(np.mean((a_est - a_true) ** 2)))
-    bias = float(np.mean(a_est - a_true))
-    lo = a_est - 1.96 * a_std
-    up = a_est + 1.96 * a_std
-    coverage = float(np.mean((a_true >= lo) & (a_true <= up)))
+    hid_est = np.array(hid_est)
+    hid_std = np.array(hid_std)
+    hid_true = np.array(hid_true)
+    rmse = float(np.sqrt(np.mean((hid_est - hid_true) ** 2)))
+    bias = float(np.mean(hid_est - hid_true))
+    lo = hid_est - 1.96 * hid_std
+    up = hid_est + 1.96 * hid_std
+    coverage = float(np.mean((hid_true >= lo) & (hid_true <= up)))
 
     # engine alert time per safety target (first forecast ALERT naming it)
-    engine_alert: dict = {s.name: None for s in spec.safety}
+    engine_alert = {s.name: None for s in spec.safety}
     for t_ev, level, msg in eng.events:
         if level == "ALERT":
             for s in spec.safety:
