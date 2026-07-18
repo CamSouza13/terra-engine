@@ -3,88 +3,74 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Terra Console — node setup & operations</title>
-<meta name="description" content="Configure hardware, sensors, and domain; calibrate; and run the live Terra biogeochemical control engine."/>
+<title>Terra Console</title>
 <meta name="theme-color" content="#04070a"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#04070a;--bg2:#070d11;--panel:#0b1319;--card:#0d141a;--line:rgba(120,160,140,.16);
-  --ink:#e9f2ec;--body:#b7c5ba;--muted:#7f9689;--green:#4ade80;--cyan:#22d3ee;--aqua:#7fffd4;--amber:#fbbf24;--red:#fb7185;
-  --font:"Space Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",monospace;
-}
+:root{--bg:#04070a;--bg2:#070d11;--card:#0d141a;--line:rgba(120,160,140,.16);--ink:#e9f2ec;--body:#b7c5ba;--muted:#7f9689;--green:#4ade80;--cyan:#22d3ee;--aqua:#7fffd4;--amber:#fbbf24;--red:#fb7185;--font:"Space Grotesk",system-ui,sans-serif;--mono:"JetBrains Mono",monospace;}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.45}
-a{color:inherit}
 .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
-/* sidebar */
 .side{background:linear-gradient(180deg,#060c10,#04070a);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:14px;margin-bottom:6px}
-.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 1.6s infinite}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.brand .dot.on{background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 1.6s infinite}
 @keyframes pulse{50%{opacity:.35}}
 .brand small{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--muted);font-weight:400;margin-top:2px}
 .nav{display:flex;flex-direction:column;gap:3px;margin-top:14px}
-.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;font-size:14px;color:var(--body);transition:background .2s,color .2s}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:9px;font-size:14px;color:var(--body)}
 .nav button:hover{background:var(--card)}
 .nav button.active{background:var(--card);color:var(--ink);box-shadow:inset 2px 0 0 var(--green)}
 .nav .ic{width:16px;text-align:center;color:var(--green);font-family:var(--mono);font-size:12px}
-.side .foot{margin-top:auto;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em;line-height:1.6}
+.side .foot{margin-top:auto;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.06em;line-height:1.7}
 .side .foot b{color:var(--aqua);font-weight:400}
-/* main */
 main{padding:26px clamp(18px,3vw,40px);max-width:1200px}
 .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--green);margin-bottom:6px}
 h1{font-size:26px;font-weight:600;letter-spacing:-.02em}
-.sub{color:var(--muted);font-size:13px;margin-top:5px;max-width:60ch}
+.sub{color:var(--muted);font-size:13px;margin-top:5px;max-width:66ch}
 .statuspill{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:8px 13px;border:1px solid var(--line);border-radius:30px;display:flex;align-items:center;gap:8px;background:var(--card)}
 .statuspill .b{width:7px;height:7px;border-radius:50%;background:var(--muted)}
 .statuspill.live .b{background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.4s infinite}
-.view{display:none;animation:fade .3s}
-.view.active{display:block}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-/* generic */
-.grid{display:grid;gap:14px}
-.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:820px){.g2,.g3,.g4{grid-template-columns:1fr}.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;overflow:auto}.nav{flex-direction:row;flex-wrap:wrap}}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:820px){.g2,.g3{grid-template-columns:1fr}.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap}.nav{flex-direction:row;flex-wrap:wrap}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
 .card h3{font-size:15px;font-weight:600;margin-bottom:4px}
 .card .desc{color:var(--muted);font-size:12px;margin-bottom:12px}
 .label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .opts{display:flex;flex-direction:column;gap:8px}
-.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;cursor:pointer;transition:border-color .2s,background .2s;font-size:13px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;cursor:pointer;font-size:13px}
 .opt:hover{border-color:rgba(127,255,212,.4)}
 .opt.sel{border-color:var(--green);background:rgba(74,222,128,.06)}
 .opt .r{font-family:var(--mono);font-size:12px;color:var(--aqua)}
 .opt .m{color:var(--muted);font-size:11px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{font-family:var(--mono);font-size:12px;padding:7px 12px;border:1px solid var(--line);border-radius:30px;cursor:pointer;color:var(--muted);transition:all .2s;user-select:none}
+.chip{font-family:var(--mono);font-size:12px;padding:7px 12px;border:1px solid var(--line);border-radius:30px;cursor:pointer;color:var(--muted);user-select:none}
 .chip.on{color:#04140e;background:var(--aqua);border-color:var(--aqua);font-weight:600}
-.chip.locked{opacity:.5;cursor:not-allowed}
+.chip.locked{opacity:.55;cursor:default}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
 th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:400}
 td.r,th.r{text-align:right}
 .total td{border-top:1px solid var(--green);border-bottom:none;font-weight:600;color:var(--ink);padding-top:11px}
-.btn{all:unset;cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 18px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);transition:all .2s;text-align:center;display:inline-block}
+.btn{all:unset;cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 18px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);text-align:center;display:inline-block}
 .btn:hover{border-color:var(--aqua)}
 .btn.primary{background:var(--aqua);color:#04140e;border-color:var(--aqua);font-weight:700}
-.btn.primary:hover{opacity:.88}
-.btn.warn{border-color:rgba(251,191,36,.5);color:var(--amber)}
 .btn.sm{padding:8px 12px;font-size:11px}
+.btn[disabled]{opacity:.5;cursor:default}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-/* dashboard */
 .tele{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 @media(max-width:820px){.tele{grid-template-columns:repeat(3,1fr)}}
 .cell{background:var(--card);padding:14px 12px;font-family:var(--mono)}
 .cell .l{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.cell .v{font-size:22px;margin-top:6px;transition:color .3s}
-.cell .u{font-size:10px;color:var(--muted);margin-left:3px}
+.cell .v{font-size:22px;margin-top:6px}
 .cell.alarm .v{color:var(--amber)}
-.gauge{position:relative}
+.cell.off{opacity:.45}
 .hiddenbar{height:12px;border-radius:8px;background:var(--bg2);overflow:hidden;border:1px solid var(--line);margin-top:10px}
-.hiddenbar>div{height:100%;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));transition:width .4s}
-.riskring{--p:0;width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--risk,#4ade80) calc(var(--p)*1%),var(--bg2) 0);display:grid;place-items:center;margin:6px auto}
+.hiddenbar>div{height:100%;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));transition:width .4s;width:100%}
+.riskring{--p:0;width:120px;height:120px;border-radius:50%;background:conic-gradient(var(--risk,#4ade80) calc(var(--p)*1%),var(--bg2) 0);display:grid;place-items:center;margin:6px auto;position:relative}
 .riskring::before{content:"";position:absolute;width:92px;height:92px;border-radius:50%;background:var(--card)}
 .riskring .n{position:relative;font-family:var(--mono);font-size:24px;font-weight:600}
 .riskring .n small{display:block;font-size:9px;color:var(--muted);letter-spacing:.1em;text-align:center}
@@ -93,28 +79,27 @@ canvas{width:100%;display:block}
 .ev{display:flex;gap:10px;padding:6px 4px;border-bottom:1px solid rgba(120,160,140,.08)}
 .ev .t{color:var(--cyan);min-width:56px}
 .ev.WARN .lv{color:var(--amber)}.ev.ALERT .lv{color:var(--red)}.ev.ACTION .lv{color:var(--green)}.ev.INFO .lv{color:var(--muted)}
-.ev .lv{min-width:52px;font-weight:500}
-.ev .m{color:var(--body)}
+.ev .lv{min-width:52px;font-weight:500}.ev .m{color:var(--body)}
 .toggle{display:inline-flex;align-items:center;gap:9px;font-size:13px;cursor:pointer}
-.sw{width:40px;height:22px;border-radius:20px;background:var(--bg2);border:1px solid var(--line);position:relative;transition:background .2s}
+.sw{width:40px;height:22px;border-radius:20px;background:var(--bg2);border:1px solid var(--line);position:relative}
 .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
 .toggle.on .sw{background:rgba(74,222,128,.25);border-color:var(--green)}
 .toggle.on .sw::after{transform:translateX(18px);background:var(--green)}
-.bignum{font-family:var(--mono)}
-.progress{height:8px;border-radius:6px;background:var(--bg2);overflow:hidden;border:1px solid var(--line)}
-.progress>div{height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .2s}
-.drop{border:1.5px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted);font-size:13px;transition:border-color .2s}
-.drop:hover{border-color:var(--aqua)}
-.kpill{font-family:var(--mono);font-size:11px;color:var(--aqua)}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;display:block}
 .hint{font-size:11px;color:var(--muted);margin-top:8px;font-family:var(--mono)}
+.kpill{font-family:var(--mono);font-size:11px;color:var(--aqua);margin-right:8px}
 .tag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
 .tag.g{color:var(--green);border-color:rgba(74,222,128,.4)}
+.tag.r{color:var(--red);border-color:rgba(251,113,133,.4)}
+input{outline:none}
+.banner{background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.35);color:var(--body);border-radius:12px;padding:16px 18px;font-size:13px;margin-bottom:16px;font-family:var(--mono)}
+.banner code{color:var(--aqua)}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><span class="dot"></span><div>Terra<small>CONSOLE</small></div></div>
+    <div class="brand"><span class="dot" id="liveDot"></span><div>Terra<small>CONSOLE</small></div></div>
     <nav class="nav" id="nav">
       <button data-v="setup" class="active"><span class="ic">01</span>Hardware</button>
       <button data-v="domain"><span class="ic">02</span>Domain &amp; sensors</button>
@@ -122,131 +107,96 @@ canvas{width:100%;display:block}
       <button data-v="dash"><span class="ic">04</span>Live dashboard</button>
     </nav>
     <div class="foot">
-      node · <b id="fNode">terra-node</b><br>
-      domain · <b id="fDomain">aquaculture</b><br>
-      engine · <b id="fEngine">idle</b><br>
+      node · <b id="fNode">—</b><br>
+      domain · <b id="fDomain">—</b><br>
+      source · <b id="fSource">—</b><br>
+      engine · <b id="fEngine">—</b><br>
       <span style="opacity:.6">from the mud to the moon</span>
     </div>
   </aside>
-
   <main>
     <div class="head">
       <div>
         <div class="eyebrow" id="eyebrow">01 — Hardware</div>
         <h1 id="title">Node hardware</h1>
-        <div class="sub" id="subtitle">Choose the compute board and sensor kit. The engine is numpy-only and runs on any of these.</div>
+        <div class="sub" id="subtitle">Live from the running node. Every value is computed by the engine and stored on disk.</div>
       </div>
-      <div class="statuspill" id="statuspill"><span class="b"></span><span id="statusText">engine idle</span></div>
+      <div class="statuspill" id="statuspill"><span class="b"></span><span id="statusText">connecting…</span></div>
     </div>
 
-    <!-- ===== SETUP / HARDWARE ===== -->
+    <div class="banner" id="offlineBanner" style="display:none">
+      Not connected to a node. Start the engine with <code>terra serve</code> and reload, or point the console at a node URL below.
+    </div>
+
     <section class="view active" id="v-setup">
       <div class="card" style="margin-bottom:14px">
-        <h3>Node connection <span class="tag" id="connTag">offline demo</span></h3>
-        <div class="desc">Connect to a running node (<code style="color:var(--aqua)">terra serve</code>), or use the console standalone in offline simulation — it works with no backend.</div>
+        <h3>Node connection <span class="tag" id="connTag">—</span></h3>
+        <div class="desc">This console is a thin client for a running node (<code style="color:var(--aqua)">terra serve</code>). It shows only what the engine computes.</div>
         <div class="row">
           <input id="nodeUrl" placeholder="http://terra-node.local:8700" style="flex:1;min-width:220px;font-family:var(--mono);font-size:12px;padding:11px 12px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;color:var(--ink)">
           <button class="btn sm" id="btnConnect">Connect</button>
         </div>
         <div class="row" style="margin-top:13px;justify-content:space-between">
-          <div class="hint" id="connStatus">Not connected — running local simulation.</div>
+          <div class="hint" id="connStatus">—</div>
           <div class="toggle" id="offlineTog" style="display:none"><span>Offline operation</span><span class="sw"></span></div>
         </div>
       </div>
       <div class="grid g2">
-        <div class="card">
-          <h3>Compute board</h3><div class="desc">Runs the engine, forecast, and control locally — no cloud.</div>
-          <div class="opts" id="boards"></div>
-        </div>
-        <div class="card">
-          <h3>Sensor kit tier</h3><div class="desc">Accuracy vs cost. Bayesian fusion tolerates lower per-probe accuracy.</div>
-          <div class="opts" id="tiers"></div>
-        </div>
+        <div class="card"><h3>Compute board</h3><div class="desc">Runs the engine locally — no cloud.</div><div class="opts" id="boards"></div></div>
+        <div class="card"><h3>Sensor kit tier</h3><div class="desc">Accuracy vs cost. Inference tolerates lower per-probe accuracy.</div><div class="opts" id="tiers"></div></div>
       </div>
       <div class="card" style="margin-top:14px">
         <h3>Bill of materials <span class="tag g" id="bomTotalTag"></span></h3>
-        <div class="desc">Estimated, at cost. TAN / NO₂ / NO₃ are inferred by the engine, not sensed.</div>
+        <div class="desc">Reference spec at cost. Saved to node config when selected.</div>
         <table><thead><tr><th>Item</th><th>Detail</th><th class="r">~Unit</th></tr></thead><tbody id="bom"></tbody></table>
       </div>
     </section>
 
-    <!-- ===== DOMAIN & SENSORS ===== -->
     <section class="view" id="v-domain">
       <div class="grid g2">
-        <div class="card">
-          <h3>Domain</h3><div class="desc">Each is one SystemSpec on the same engine.</div>
-          <div class="opts" id="domains"></div>
-        </div>
+        <div class="card"><h3>Domain</h3><div class="desc">Changing it reconfigures the running engine.</div><div class="opts" id="domains"></div></div>
         <div class="card">
           <h3>Sensor channels</h3><div class="desc">Toggle what's wired. The engine rides on whatever reports; the rest is inferred.</div>
           <div class="chips" id="channels"></div>
           <div class="label" style="margin-top:18px">State the engine tracks</div>
           <div class="chips" id="states"></div>
-          <div class="label" style="margin-top:18px">Inferred (never sensed)</div>
-          <div class="chips" id="inferred"></div>
         </div>
       </div>
       <div class="card" style="margin-top:14px">
-        <h3>Safety limits to forecast</h3><div class="desc">The engine reports a calibrated probability of breaching each.</div>
+        <h3>Safety limits</h3><div class="desc">The engine reports a calibrated probability of breaching each.</div>
         <table><thead><tr><th>Target</th><th>Direction</th><th class="r">Limit</th></tr></thead><tbody id="safety"></tbody></table>
       </div>
     </section>
 
-    <!-- ===== CALIBRATION & DATA ===== -->
     <section class="view" id="v-calib">
       <div class="grid g2">
         <div class="card">
-          <h3>Calibrate from a run</h3>
-          <div class="desc">Fit this site's kinetics with HMC/NUTS. Runs offline; the tuned params feed the edge engine.</div>
-          <div class="drop" id="drop">Drop a logged CSV here, or use the demo log</div>
-          <div class="row" style="margin-top:12px">
-            <button class="btn primary" id="btnCal">Run calibration</button>
-            <button class="btn sm" id="btnApply" disabled>Apply to engine</button>
-          </div>
-          <div class="progress" id="calProg" style="margin-top:14px;display:none"><div></div></div>
-          <div class="hint" id="calStatus"></div>
+          <h3>Data</h3><div class="desc">Ingest a real logged CSV (timestamp + channel columns). The engine replays it and stores every estimate.</div>
+          <label class="drop" id="drop" for="fileIn">Choose a CSV log to ingest</label>
+          <input id="fileIn" type="file" accept=".csv" style="display:none">
+          <div class="row" style="margin-top:12px"><button class="btn sm" id="btnExport">Download stored data</button></div>
+          <div class="hint" id="dataStatus"></div>
         </div>
         <div class="card">
-          <h3>Posterior</h3><div class="desc">Fitted parameters with convergence diagnostics.</div>
-          <table><thead><tr><th>Param</th><th class="r">median</th><th class="r">R-hat</th><th class="r">ESS</th></tr></thead><tbody id="post"><tr><td colspan="4" style="color:var(--muted);font-family:var(--mono);font-size:12px">run a calibration to populate</td></tr></tbody></table>
+          <h3>Calibrate</h3><div class="desc">Runs the real HMC/NUTS fit on the active log and applies the tuned parameters to the engine.</div>
+          <button class="btn primary" id="btnCal">Run calibration</button>
+          <div class="hint" id="calStatus"></div>
+          <table style="margin-top:12px"><thead><tr><th>Param</th><th class="r">median</th><th class="r">R-hat</th><th class="r">ESS</th></tr></thead><tbody id="post"><tr><td colspan="4" style="color:var(--muted);font-family:var(--mono);font-size:12px">no calibration yet</td></tr></tbody></table>
+          <div id="drift" class="hint"></div>
         </div>
-      </div>
-      <div class="card" style="margin-top:14px">
-        <h3>Sensor drift / biofouling</h3>
-        <div class="desc">The fit jointly infers a per-channel drift rate, separating a lying sensor from a real process change.</div>
-        <div id="drift" class="row" style="font-family:var(--mono);font-size:12px;color:var(--muted)">run a calibration to estimate drift</div>
       </div>
     </section>
 
-    <!-- ===== LIVE DASHBOARD ===== -->
     <section class="view" id="v-dash">
       <div class="row" style="justify-content:space-between;margin-bottom:14px">
-        <div class="row">
-          <button class="btn primary sm" id="btnRun">▶ Start engine</button>
-          <button class="btn warn sm" id="btnFault">⚠ Inject fault</button>
-          <button class="btn sm" id="btnReset">↺ Reset</button>
-        </div>
+        <div class="row"><span class="tag" id="srcTag">source · —</span><button class="btn sm" id="btnPause">Pause view</button></div>
         <div class="toggle" id="autoTog"><span>Autonomy</span><span class="sw"></span></div>
       </div>
       <div class="tele" id="tele"></div>
       <div class="grid g3" style="margin-top:14px">
-        <div class="card">
-          <h3>Hidden state</h3><div class="desc" id="hiddenName">—</div>
-          <div class="bignum" style="font-size:30px" id="hiddenVal">—</div>
-          <div class="hiddenbar"><div id="hiddenBar" style="width:100%"></div></div>
-          <div class="hint" id="hiddenHint">the health variable the engine infers but never measures</div>
-        </div>
-        <div class="card gauge">
-          <h3>Forecast breach risk</h3><div class="desc" id="riskName">—</div>
-          <div class="riskring" id="riskRing"><span class="n" id="riskP">0%<small id="riskWhen">12 h horizon</small></span></div>
-        </div>
-        <div class="card">
-          <h3>Budget closure</h3><div class="desc">mass residual + model/measurement consistency</div>
-          <div class="bignum" style="font-size:26px" id="budget">—</div>
-          <div class="hint">NIS/dof <span id="nis">—</span> · lower is a better-explained loop</div>
-          <div class="label" style="margin-top:14px">Controller</div>
-          <div class="hint" id="ctrl" style="color:var(--body)">nominal</div>
-        </div>
+        <div class="card"><h3>Hidden state</h3><div class="desc" id="hiddenName">—</div><div style="font-family:var(--mono);font-size:30px" id="hiddenVal">—</div><div class="hiddenbar"><div id="hiddenBar"></div></div><div class="hint">inferred, never measured</div></div>
+        <div class="card"><h3>Forecast breach risk</h3><div class="desc" id="riskName">—</div><div class="riskring" id="riskRing"><span class="n" id="riskP">—<small id="riskWhen">12 h horizon</small></span></div></div>
+        <div class="card"><h3>Budget / consistency</h3><div class="desc">from the running engine</div><div style="font-family:var(--mono);font-size:26px" id="budget">—</div><div class="hint">NIS/dof <span id="nis">—</span></div><div class="label" style="margin-top:14px">Controller</div><div class="hint" id="ctrl" style="color:var(--body)">—</div></div>
       </div>
       <div class="grid g2" style="margin-top:14px">
         <div class="card"><h3>Live trace</h3><div class="desc" id="traceName">—</div><canvas id="chart" height="150"></canvas></div>
@@ -255,248 +205,104 @@ canvas{width:100%;display:block}
     </section>
   </main>
 </div>
-
 <script>
-/* ================= domain configs (mirror terra SystemSpecs) ================= */
-const NH3 = (pH=7.5,t=27)=>{const pKa=0.09018+2729.92/(273.15+t);return 1/(1+Math.pow(10,pKa-pH));};
-const DOMAINS = {
-  aquaculture:{
-    label:"Aquaculture (RAS)", hidden:"eff", hiddenLabel:"biofilter efficiency",
-    states:["TAN","NO2","NO3","DO","eff"],
-    x0:[0.35,0.10,6.0,8.9,1.0],
-    channels:[{k:"TAN",u:"mg/L",n:0.12,i:0},{k:"NO2",u:"mg/L",n:0.06,i:1},{k:"NO3",u:"mg/L",n:0.8,i:2},{k:"DO",u:"mg/L",n:0.15,i:3}],
-    inferred:["TAN-truth","NO₂ pathway","NO₃ pathway"],
-    p:{V:20000,Q:800,k1:1.6,K1:.5,k2:1.8,K2:.5,DO_sat:8,kLa:2.2,resp:.9,ot:3.43,on:1.14,NO3i:4,at:.03},
-    u:()=>[0.22,1.0],
-    deriv(x,u,p){const[TAN,NO2,NO3,DO,e]=x;const pt=u[0]*p.at*1e6/p.V,r1=e*p.k1*Math.max(TAN,0)/(p.K1+Math.max(TAN,0)),r2=e*p.k2*Math.max(NO2,0)/(p.K2+Math.max(NO2,0)),dil=p.Q*u[1]/p.V;
-      return[pt-r1-dil*TAN, r1-r2-dil*NO2, r2-dil*(NO3-p.NO3i), p.kLa*(p.DO_sat-DO)-p.resp-(p.ot*r1+p.on*r2), 0];},
-    nonneg:[1,1,1,1,0],
-    safety:[{name:"un-ionized NH₃-N",f:x=>x[0]*NH3(),lim:0.05,dir:">",u:"mg/L"},{name:"nitrite NO₂-N",f:x=>x[1],lim:0.5,dir:">",u:"mg/L"}],
-    fault:{state:4,from:1.0,to:0.15,t0:6,t1:11}, calib:{k1:1.6,k2:1.8,kLa:2.2,resp:0.9},
-    actuator:{label:"water exchange + feed hold", apply:u=>[0.0,6.0]}
-  },
-  soil:{
-    label:"Soil / CEA", hidden:"act", hiddenLabel:"microbial activity",
-    states:["NH4","NO3","resp","act"], x0:[0.5,10,2,1],
-    channels:[{k:"NH4",u:"mg/L",n:1,i:0},{k:"NO3",u:"mg/L",n:1.5,i:1},{k:"CO2_flux",u:"",n:.05,i:2},{k:"EC",u:"",n:.05,i:1}],
-    inferred:["root-zone act","available N"],
-    p:{k:1.5,K:1,uptake:.30,base:2,krelax:.4},
-    u:()=>[0.5,0.02,0.0],
-    deriv(x,u,p){const[NH4,NO3,resp,act]=x;const r=act*p.k*Math.max(NH4,0)/(p.K+Math.max(NH4,0));
-      return[u[0]-r, r-u[1]*NO3-p.uptake+u[2], p.krelax*(act*p.base-resp), 0];},
-    nonneg:[1,1,1,0],
-    safety:[{name:"available nitrate",f:x=>x[1],lim:4,dir:"<",u:"mg-N/L"}],
-    fault:{state:3,from:1.0,to:0.25,t0:6,t1:16}, calib:{k:1.5,uptake:0.30,base_resp:2.0},
-    actuator:{label:"fertigation", apply:u=>[u[0],u[1],0.5]}
-  },
-  bioremediation:{
-    label:"Bioremediation", hidden:"act", hiddenLabel:"degrader activity",
-    states:["C","D","act"], x0:[50,5,1],
-    channels:[{k:"contaminant",u:"mg/L",n:2,i:0},{k:"ORP",u:"mV",n:15,i:1}],
-    inferred:["donor state","drawdown rate"],
-    p:{k:.5,Kc:20,Kd:1,y:3,infl:.005,Csrc:60},
-    u:()=>[1.0], _fault:false,
-    deriv(x,u,p){const[C,D,act]=x;const rate=act*p.k*Math.max(C,0)/(p.Kc+Math.max(C,0))*Math.max(D,0)/(p.Kd+Math.max(D,0));
-      return[-rate+p.infl*(p.Csrc-C), u[0]-p.y*rate, 0];},
-    nonneg:[1,1,0],
-    safety:[{name:"electron donor",f:x=>x[1],lim:0.5,dir:"<",u:"mg/L"}],
-    fault:{input:true,t0:6}, calib:{k:0.5,y:3.0},
-    actuator:{label:"restore donor dosing", apply:u=>[1.5]}
-  },
-  blss:{
-    label:"BLSS (habitat air)", hidden:"act", hiddenLabel:"crop photosynthetic capacity",
-    states:["CO2","O2","act"], x0:[900,20.9,1],
-    channels:[{k:"CO2",u:"ppm",n:40,i:0},{k:"O2",u:"%",n:.10,i:1}],
-    inferred:["crop capacity","gas balance"],
-    p:{crewC:300,crewO:.30,Pmax:466,Kco2:500,ko2:.001,leak:.02,Camb:400,Oamb:20.9,scrub:260,ocap:.28},
-    u:()=>[1.0,0.0],
-    deriv(x,u,p){const[CO2,O2,act]=x;const photo=act*p.Pmax*u[0]*Math.max(CO2,0)/(p.Kco2+Math.max(CO2,0));
-      return[p.crewC-photo+p.leak*(p.Camb-CO2)-u[1]*p.scrub, -p.crewO+p.ko2*photo+p.leak*(p.Oamb-O2)+u[1]*p.ocap, 0];},
-    nonneg:[1,0,0],
-    safety:[{name:"cabin O₂",f:x=>x[1],lim:19.5,dir:"<",u:"%"},{name:"cabin CO₂",f:x=>x[0],lim:5000,dir:">",u:"ppm"}],
-    fault:{state:2,from:1.0,to:0.30,t0:5,t1:9}, calib:{Pmax:466,crew_co2:300,crew_o2:0.30},
-    actuator:{label:"engage LS backup", apply:u=>[1.0,1.0]}
-  }
-};
-const BOARDS=[{k:"Pi Zero 2 W",m:"512 MB · ~1–2 W · field",c:15},{k:"Raspberry Pi 4 (4 GB)",m:"bench / pilot",c:58},{k:"Raspberry Pi 5 (4 GB)",m:"fastest",c:60}];
-const TIERS={
-  "Field / mid-grade":{note:"analog probes + ADC + RP2040",items:[["Board+compute","selected board","—"],["DO probe","galvanic, mid-grade","$90"],["pH + ORP","analog","$70"],["EC","probe + driver","$40"],["ADC + isolation","ADS1220 + galvanic","$36"],["Temp, power, enclosure","integration","$77"]],total:"~$390"},
-  "Lab-grade":{note:"Atlas EZO smart sensors",items:[["Board+compute","Pi 4","—"],["DO kit","Atlas EZO (isolated)","$355"],["pH kit","Atlas EZO","$150"],["ORP kit","Atlas EZO","$120"],["EC kit","Atlas EZO","$165"],["Temp + enclosure","","$105"]],total:"~$1,050"},
-  "Bring-your-own":{note:"rides on existing probes",items:[["Board+carrier","Pi + isolation","$60"],["Integration","to existing farm probes","labor"]],total:"~$125"}
-};
+const DLABEL={aquaculture:"Aquaculture (RAS)",soil:"Soil / CEA",bioremediation:"Bioremediation",blss:"BLSS (habitat air)"};
+const HLABEL={aquaculture:"biofilter efficiency",soil:"microbial activity",bioremediation:"degrader activity",blss:"crop photosynthetic capacity"};
+const STMAP={aquaculture:["TAN","NO2","NO3","DO","eff"],soil:["NH4","NO3","resp","act"],bioremediation:["C","D","act"],blss:["CO2","O2","act"]};
+const BOARDS=[{k:"Pi Zero 2 W",m:"512 MB · ~1-2 W · field",c:15},{k:"Raspberry Pi 4 (4 GB)",m:"bench / pilot",c:58},{k:"Raspberry Pi 5 (4 GB)",m:"fastest",c:60}];
+const TIERS={"Field / mid-grade":{note:"analog probes + ADC + RP2040",items:[["Board+compute","selected board","—"],["DO probe","galvanic, mid-grade","$90"],["pH + ORP","analog","$70"],["EC","probe + driver","$40"],["ADC + isolation","ADS1220 + galvanic","$36"],["Temp, power, enclosure","integration","$77"]],total:"~$390"},
+"Lab-grade":{note:"Atlas EZO smart sensors",items:[["Board+compute","Pi 4","—"],["DO kit","Atlas EZO (isolated)","$355"],["pH kit","Atlas EZO","$150"],["ORP kit","Atlas EZO","$120"],["EC kit","Atlas EZO","$165"],["Temp + enclosure","","$105"]],total:"~$1,050"},
+"Bring-your-own":{note:"rides on existing probes",items:[["Board+carrier","Pi + isolation","$60"],["Integration","to existing farm probes","labor"]],total:"~$125"}};
+const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const S={base:location.protocol.startsWith("http")?location.origin:"",connected:false,cfg:null,timer:null,paused:false,hwBoard:1,hwTier:"Field / mid-grade"};
 
-/* ================= state ================= */
-const S={board:1,tier:"Field / mid-grade",domain:"aquaculture",channels:{},running:false,autonomy:false,
-  mode:"sim",nodeUrl:"",offline:false,
-  t:0,x:null,est:null,hstd:0.05,fault:false,calibrated:false,events:[],hist:[],timer:null,riskP:0,cross:null,nisv:1.0};
+async function api(path,opts){const r=await fetch(S.base+path,Object.assign({cache:"no-store"},opts||{}));if(!r.ok)throw new Error(r.status);return r.json();}
+async function post(path,body){return api(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});}
 
-/* ================= rendering ================= */
-const $=s=>document.querySelector(s), el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
-function renderBoards(){const w=$("#boards");w.innerHTML="";BOARDS.forEach((b,i)=>{const o=el("div","opt"+(S.board===i?" sel":""));o.innerHTML=`<div><div>${b.k}</div><div class="m">${b.m}</div></div><div class="r">$${b.c}</div>`;o.onclick=()=>{S.board=i;renderBoards();renderBOM();};w.appendChild(o);});}
-function renderTiers(){const w=$("#tiers");w.innerHTML="";Object.keys(TIERS).forEach(k=>{const t=TIERS[k],o=el("div","opt"+(S.tier===k?" sel":""));o.innerHTML=`<div><div>${k}</div><div class="m">${t.note}</div></div><div class="r">${t.total}</div>`;o.onclick=()=>{S.tier=k;renderTiers();renderBOM();};w.appendChild(o);});}
-function renderBOM(){const t=TIERS[S.tier],b=$("#bom");b.innerHTML="";t.items.forEach(r=>{const tr=el("tr");tr.innerHTML=`<td>${r[0]}</td><td style="color:var(--muted)">${r[1].replace("selected board",BOARDS[S.board].k)}</td><td class="r">${r[2]}</td>`;b.appendChild(tr);});const tr=el("tr","total");tr.innerHTML=`<td>Node total</td><td></td><td class="r">${t.total}</td>`;b.appendChild(tr);$("#bomTotalTag").textContent=t.total+" / node";}
-
-function renderDomains(){const w=$("#domains");w.innerHTML="";Object.keys(DOMAINS).forEach(k=>{const d=DOMAINS[k],o=el("div","opt"+(S.domain===k?" sel":""));o.innerHTML=`<div><div>${d.label}</div><div class="m">hidden: ${d.hiddenLabel}</div></div><div class="r">${d.channels.length} ch</div>`;o.onclick=()=>{setDomain(k);};w.appendChild(o);});}
-function renderChannels(){const d=DOMAINS[S.domain];const w=$("#channels");w.innerHTML="";d.channels.forEach(c=>{if(S.channels[c.k]===undefined)S.channels[c.k]=true;const ch=el("div","chip"+(S.channels[c.k]?" on":""),c.k);ch.onclick=()=>{S.channels[c.k]=!S.channels[c.k];renderChannels();};w.appendChild(ch);});
-  const ws=$("#states");ws.innerHTML="";d.states.forEach(s=>ws.appendChild(el("div","chip locked on",s)));
-  const wi=$("#inferred");wi.innerHTML="";d.inferred.forEach(s=>wi.appendChild(el("div","chip",s)));
-  const sf=$("#safety");sf.innerHTML="";d.safety.forEach(s=>{const tr=el("tr");tr.innerHTML=`<td>${s.name}</td><td style="color:var(--muted)">${s.dir==='>'?'above':'below'}</td><td class="r">${s.lim} ${s.u}</td>`;sf.appendChild(tr);});}
-function setDomain(k){S.domain=k;S.channels={};resetSim();renderDomains();renderChannels();renderTele();$("#fDomain").textContent=k;}
-
-/* ================= simulation engine ================= */
-function resetSim(){const d=DOMAINS[S.domain];S.t=0;S.x=d.x0.slice();S.est=d.x0.slice();S.fault=false;S.events=[];S.hist=[];S.riskP=0;S.cross=null;S.nisv=1.0;S._enacted=false;renderEvents();}
-function rk4(x,dt,u,p,d){const k1=d.deriv(x,u,p);const x2=x.map((v,i)=>v+dt/2*k1[i]);const k2=d.deriv(x2,u,p);const x3=x.map((v,i)=>v+dt/2*k2[i]);const k3=d.deriv(x3,u,p);const x4=x.map((v,i)=>v+dt*k3[i]);const k4=d.deriv(x4,u,p);
-  return x.map((v,i)=>{let nx=v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]);if(d.nonneg[i])nx=Math.max(nx,0);return nx;});}
-function hiddenTraj(d,t){const f=d.fault;if(!S.fault||f.input)return d.x0[f.state!=null?f.state:0];if(t<=f.t0)return f.from;if(t>=f.t1)return f.to;return f.from+(t-f.t0)/(f.t1-f.t0)*(f.to-f.from);}
-function curU(d){let u=d.u();if(S.fault&&d.fault.input&&S.t>=d.fault.t0)u=[0.0];if(S.autonomy&&S._enacted)u=d.actuator.apply(u);return u;}
-function gauss(s){let a=0;for(let i=0;i<3;i++)a+=Math.random()*2-1;return a/1.5*s;}
-function step(){const d=DOMAINS[S.domain],p=Object.assign({},d.p),dt=0.25;
-  // impose hidden trajectory (fault)
-  if(d.fault.state!=null)S.x[d.fault.state]=hiddenTraj(d,S.t);
-  const u=curU(d);
-  S.x=rk4(S.x,dt,u,p,d);
-  S.t+=dt;
-  // sensor readings + light estimator (smooth toward truth, hidden inferred)
-  d.channels.forEach(c=>{const meas=S.x[c.i]+gauss(c.n);const use=S.channels[c.k];if(use)S.est[c.i]+=0.5*(meas-S.est[c.i]);else S.est[c.i]+=0.5*(S.x[c.i]-S.est[c.i]);});
-  const hi=d.states.indexOf(d.hidden);S.est[hi]+=0.35*(S.x[hi]-S.est[hi])+gauss(0.01);
-  // forecast MC
-  forecast(d,p);
-  // budget/nis proxy
-  S.nisv=Math.min(6,1+Math.abs(S.x[hi]-S.est[hi])*8+(S.riskP>0.3?S.riskP*2:0));
-  // controller
-  runController(d);
-  logic(d);
-  S.hist.push({t:S.t,x:S.est.slice()});if(S.hist.length>240)S.hist.shift();
+async function connect(url){
+  if(url!=null)S.base=url.replace(/\/+$/,"");
+  try{const st=await api("/api/status");S.connected=true;await onConnected(st);return true;}
+  catch(e){S.connected=false;showDisconnected();return false;}
 }
-function forecast(d,p){const H=12,dt=0.5,n=26;let crossed=new Array(d.safety.length).fill(0),ct=new Array(d.safety.length).fill(0);
-  const u=curU(d);
-  for(let s=0;s<n;s++){let x=S.est.map((v,i)=>v+gauss(0.02*Math.abs(v)+0.02));let hit=new Array(d.safety.length).fill(false);
-    for(let k=1;k<=H/dt;k++){x=rk4(x,dt,u,p,d);d.safety.forEach((sf,j)=>{const lv=sf.f(x);const b=sf.dir===">"?lv>sf.lim:lv<sf.lim;if(b&&!hit[j]){hit[j]=true;crossed[j]++;ct[j]+=k*dt;}});}}
-  let best=0,bi=0,when=null;crossed.forEach((c,j)=>{const pr=c/n;if(pr>best){best=pr;bi=j;when=c?ct[j]/c:null;}});
-  S.riskP=best;S.riskIdx=bi;S.cross=when;}
-function runController(d){S._enacted=false;const sf=d.safety[S.riskIdx||0];
-  if(S.riskP>=0.30){const act=d.actuator;if(S.autonomy){S._enacted=true;setCtrl(`ENACTED · ${act.label} — risk ${(S.riskP*100)|0}% → easing`,'var(--green)');}
-    else setCtrl(`RECOMMEND · ${act.label} (autonomy off) — risk ${(S.riskP*100)|0}%`,'var(--amber)');}
-  else setCtrl('nominal','var(--body)');}
-function setCtrl(t,c){const e=$("#ctrl");if(e){e.textContent=t;e.style.color=c;}}
-let announced={};
-function logic(d){const hi=d.states.indexOf(d.hidden),base=d.x0[hi];
-  const he=S.est[hi];
-  if(base&&he<0.85*base&&S.est&&!announced.hidden){announced.hidden=1;addEvent("WARN",`${d.hiddenLabel} est ${he.toFixed(2)} (${((he/base-1)*100)|0}% vs baseline) — loop not closing`);}
-  const sf=d.safety[S.riskIdx||0];
-  if(S.riskP>=0.30&&!announced["r"+S.riskIdx]){announced["r"+S.riskIdx]=1;const w=S.cross?` in ~${S.cross.toFixed(1)} h`:"";addEvent("ALERT",`${sf.name} forecast to breach (${sf.dir}${sf.lim} ${sf.u}) P=${S.riskP.toFixed(2)}${w}`);}
-  if(S._enacted&&!announced.act){announced.act=1;addEvent("ACTION",`${d.actuator.label} enacted (autonomy)`);}
-  if(S.nisv>4&&!announced.nis){announced.nis=1;addEvent("INFO",`model/measurement consistency degraded (NIS/dof ${S.nisv.toFixed(1)})`);}
+function showDisconnected(){$("#liveDot").classList.remove("on");$("#statuspill").classList.remove("live");$("#statusText").textContent="not connected";$("#offlineBanner").style.display="block";$("#connTag").textContent="offline";$("#connTag").className="tag r";$("#connStatus").textContent="No node reachable at "+(S.base||"same origin")+".";$("#fEngine").textContent="—";}
+async function onConnected(st){
+  $("#liveDot").classList.add("on");$("#offlineBanner").style.display="none";
+  $("#connTag").textContent="connected";$("#connTag").className="tag g";
+  $("#offlineTog").style.display="inline-flex";$("#offlineTog").classList.toggle("on",st.offline);$("#autoTog").classList.toggle("on",st.autonomy);
+  $("#fNode").textContent=(st.hardware&&st.hardware.board)||"terra-node";$("#fDomain").textContent=st.domain;$("#fSource").textContent=st.source;$("#fEngine").textContent=st.running?"running":"idle";
+  $("#connStatus").textContent="Connected · "+st.domain+" · source "+st.source;$("#connStatus").style.color="var(--green)";$("#srcTag").textContent="source · "+st.source;
+  await loadConfig();
+  if(!S.timer)S.timer=setInterval(tick,1000);
 }
-function addEvent(lv,m){S.events.unshift({t:S.t,lv,m});if(S.events.length>40)S.events.pop();renderEvents();}
-function renderEvents(){const w=$("#events");if(!w)return;w.innerHTML="";if(!S.events.length){w.innerHTML='<div class="ev INFO"><span class="t">—</span><span class="lv">IDLE</span><span class="m">start the engine to see events</span></div>';return;}
-  S.events.forEach(e=>{const d=el("div","ev "+e.lv);d.innerHTML=`<span class="t">${e.t.toFixed(1)}h</span><span class="lv">${e.lv}</span><span class="m">${e.m}</span>`;w.appendChild(d);});}
+async function loadConfig(){
+  const c=await api("/api/config");S.cfg=c;
+  if(c.hardware){S.hwTier=c.hardware.tier||S.hwTier;const bi=BOARDS.findIndex(b=>b.k===c.hardware.board);if(bi>=0)S.hwBoard=bi;}
+  renderBoards();renderTiers();renderBOM();renderDomains();renderChannels();renderSafety();
+}
+function renderBoards(){const w=$("#boards");w.innerHTML="";BOARDS.forEach((b,i)=>{const o=el("div","opt"+(S.hwBoard===i?" sel":""));o.innerHTML=`<div><div>${b.k}</div><div class="m">${b.m}</div></div><div class="r">$${b.c}</div>`;o.onclick=()=>{S.hwBoard=i;renderBoards();renderBOM();saveHardware();};w.appendChild(o);});}
+function renderTiers(){const w=$("#tiers");w.innerHTML="";Object.keys(TIERS).forEach(k=>{const t=TIERS[k],o=el("div","opt"+(S.hwTier===k?" sel":""));o.innerHTML=`<div><div>${k}</div><div class="m">${t.note}</div></div><div class="r">${t.total}</div>`;o.onclick=()=>{S.hwTier=k;renderTiers();renderBOM();saveHardware();};w.appendChild(o);});}
+function renderBOM(){const t=TIERS[S.hwTier],b=$("#bom");b.innerHTML="";t.items.forEach(r=>{const tr=el("tr");tr.innerHTML=`<td>${r[0]}</td><td style="color:var(--muted)">${r[1].replace("selected board",BOARDS[S.hwBoard].k)}</td><td class="r">${r[2]}</td>`;b.appendChild(tr);});const tr=el("tr","total");tr.innerHTML=`<td>Node total</td><td></td><td class="r">${t.total}</td>`;b.appendChild(tr);$("#bomTotalTag").textContent=t.total+" / node";}
+function saveHardware(){if(S.connected)post("/api/config",{hardware:{board:BOARDS[S.hwBoard].k,tier:S.hwTier}}).catch(()=>{});}
+function renderDomains(){const w=$("#domains");w.innerHTML="";Object.keys(DLABEL).forEach(k=>{const o=el("div","opt"+(S.cfg.domain===k?" sel":""));o.innerHTML=`<div><div>${DLABEL[k]}</div><div class="m">hidden: ${HLABEL[k]}</div></div><div class="r">${k===S.cfg.domain?"active":""}</div>`;o.onclick=async()=>{if(k===S.cfg.domain)return;await post("/api/config",{domain:k,channels:null,params:{}});await loadConfig();$("#fDomain").textContent=k;};w.appendChild(o);});}
+function renderChannels(){const w=$("#channels");w.innerHTML="";const enabled=S.cfg.channels_enabled;S.cfg.channels.forEach(c=>{const on=enabled==null||enabled.includes(c.key);const ch=el("div","chip"+(on?" on":""),c.key);ch.onclick=()=>toggleChannel(c.key);w.appendChild(ch);});
+  const ws=$("#states");ws.innerHTML="";(STMAP[S.cfg.domain]||[]).forEach(s=>ws.appendChild(el("div","chip locked on",s)));}
+async function toggleChannel(key){const all=S.cfg.channels.map(c=>c.key);let en=S.cfg.channels_enabled==null?all.slice():S.cfg.channels_enabled.slice();if(en.includes(key))en=en.filter(x=>x!==key);else en.push(key);if(en.length===all.length)en=null;await post("/api/config",{channels:en});await loadConfig();}
+function renderSafety(){const sf=$("#safety");sf.innerHTML="";S.cfg.safety.forEach(s=>{const tr=el("tr");tr.innerHTML=`<td>${s.name}</td><td style="color:var(--muted)">${s.direction===">"?"above":"below"}</td><td class="r">${s.limit} ${s.units}</td>`;sf.appendChild(tr);});}
 
-/* ================= dashboard render ================= */
-function renderTele(){const d=DOMAINS[S.domain],w=$("#tele");w.innerHTML="";
-  d.channels.forEach(c=>{const cell=el("div","cell");cell.dataset.k=c.k;cell.innerHTML=`<div class="l">${c.k}${S.channels[c.k]===false?" ·off":""}</div><div class="v">—</div>`;w.appendChild(cell);});
-  // pad grid
-  $("#hiddenName").textContent=d.hiddenLabel;$("#hiddenHint").textContent="the health variable the engine infers but never measures";
-  $("#riskName").textContent=d.safety[0].name;$("#traceName").textContent=d.channels[0].k+" · measured vs estimate";
-  updateDash();}
-function updateDash(){const d=DOMAINS[S.domain];
-  d.channels.forEach(c=>{const cell=document.querySelector(`.cell[data-k="${c.k}"]`);if(!cell)return;const v=S.est[c.i];cell.querySelector(".v").innerHTML=`${v.toFixed(c.n<0.2?2:1)}<span class="u">${c.u}</span>`;});
-  const hi=d.states.indexOf(d.hidden),base=d.x0[hi],he=S.est[hi];
-  $("#hiddenVal").innerHTML=`${he.toFixed(2)} <span style="font-size:13px;color:var(--muted)">± ${S.hstd.toFixed(2)}</span>`;
-  $("#hiddenBar").style.width=Math.max(4,Math.min(100,he/base*100))+"%";
-  const rp=Math.round(S.riskP*100),ring=$("#riskRing");ring.style.setProperty("--p",rp);ring.style.setProperty("--risk",rp>50?"#fb7185":rp>25?"#fbbf24":"#4ade80");
-  $("#riskP").innerHTML=`${rp}%<small>${S.cross?"~"+S.cross.toFixed(1)+" h to breach":"12 h horizon"}</small>`;
-  $("#riskName").textContent=d.safety[S.riskIdx||0].name;
-  const sf=d.safety[S.riskIdx||0],lv=sf.f(S.est),breach=sf.dir===">"?lv>sf.lim:lv<sf.lim;
-  $("#budget").innerHTML=`${(S.nisv>2?"open":"closed")} <span style="font-size:13px;color:var(--muted)">Δ${(S.nisv-1).toFixed(2)}</span>`;
-  $("#nis").textContent=S.nisv.toFixed(1);
-  // alarms on cells
-  d.channels.forEach(c=>{const cell=document.querySelector(`.cell[data-k="${c.k}"]`);if(cell)cell.classList.toggle("alarm",d.safety.some(s=>s.f(S.est)&&(s.dir===">"?s.f(S.est)>s.lim:s.f(S.est)<s.lim)&&s.name.includes(c.k)));});
-  drawChart();}
-function drawChart(){const cv=$("#chart");if(!cv)return;const dpr=Math.min(devicePixelRatio||1,2);const w=cv.clientWidth,h=150;cv.width=w*dpr;cv.height=h*dpr;const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
-  const d=DOMAINS[S.domain],ci=d.channels[0].i;const hist=S.hist;if(hist.length<2)return;
-  const vals=hist.map(p=>p.x[ci]);const mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*0.2+1e-6;
+$("#fileIn").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;const txt=await f.text();$("#dataStatus").textContent="ingesting "+f.name+"…";
+  try{await fetch(S.base+"/api/ingest",{method:"POST",headers:{"Content-Type":"text/csv"},body:txt});$("#dataStatus").textContent="ingested "+f.name+" — engine is replaying it.";await loadConfig();}catch(err){$("#dataStatus").textContent="ingest failed";}});
+$("#btnExport").onclick=()=>{window.location=S.base+"/api/export";};
+$("#btnCal").onclick=async()=>{if(!S.connected)return;$("#btnCal").disabled=true;$("#calStatus").textContent="running HMC/NUTS on the active log… (can take a minute)";
+  try{const r=await post("/api/calibrate",{});if(r.error){$("#calStatus").textContent=r.error;$("#btnCal").disabled=false;return;}
+    $("#calStatus").textContent="converged"+(r.converged?"":" (check R-hat)")+" · parameters applied to the engine";
+    const pw=$("#post");pw.innerHTML="";Object.keys(r.medians).forEach(k=>{const d=r.diagnostics[k]||{};const tr=el("tr");tr.innerHTML=`<td>${k}</td><td class="r">${r.medians[k].toFixed(3)}</td><td class="r" style="color:${(d.rhat||9)<1.05?'var(--green)':'var(--amber)'}">${(d.rhat||0).toFixed(3)}</td><td class="r">${Math.round(d.ess||0)}</td>`;pw.appendChild(tr);});
+    const dr=Object.entries(r.drift||{});$("#drift").innerHTML=dr.length?dr.map(([k,v])=>`<span class="kpill">drift_${k}=${v.toFixed(3)}/h</span>`).join(""):"";
+  }catch(e){$("#calStatus").textContent="calibration failed on the node";}
+  $("#btnCal").disabled=false;};
+
+async function tick(){
+  if(!S.connected||S.paused)return;
+  try{const s=await api("/api/state");renderState(s);}catch(e){S.connected=false;showDisconnected();return;}
+  try{const h=await api("/api/history?n=200");drawChart(h);}catch(e){}
+}
+function renderState(s){
+  const live=s.ready;$("#statuspill").classList.toggle("live",live);$("#statusText").textContent=live?("live · "+(s.source||"")):"waiting for data";$("#fEngine").textContent=live?"running":"idle";
+  if(!S.cfg)return;const chans=S.cfg.channels,w=$("#tele");
+  if(w.childElementCount!==chans.length){w.innerHTML="";chans.forEach(c=>{const cell=el("div","cell");cell.dataset.k=c.key;cell.innerHTML=`<div class="l">${c.key}</div><div class="v">—</div>`;w.appendChild(cell);});}
+  const used=s.used||[];
+  chans.forEach(c=>{const cell=w.querySelector('.cell[data-k="'+c.key+'"]');if(!cell)return;const v=(s.channels||{})[c.key];cell.querySelector(".v").textContent=v==null?"—":(Math.abs(v)<10?v.toFixed(2):v.toFixed(1));cell.classList.toggle("off",used.length&&!used.includes(c.key));});
+  $("#hiddenName").textContent=HLABEL[S.cfg.domain];
+  if(s.hidden!=null){$("#hiddenVal").innerHTML=`${s.hidden.toFixed(2)} <span style="font-size:13px;color:var(--muted)">± ${(s.hidden_std||0).toFixed(2)}</span>`;$("#hiddenBar").style.width=Math.max(4,Math.min(100,s.hidden*100))+"%";}
+  let best=0,bn="—",when=null;Object.entries(s.risks||{}).forEach(([n,r])=>{if(r.p>=best){best=r.p;bn=n;when=r.t_cross;}});
+  const rp=Math.round(best*100),ring=$("#riskRing");ring.style.setProperty("--p",rp);ring.style.setProperty("--risk",rp>50?"#fb7185":rp>25?"#fbbf24":"#4ade80");
+  $("#riskP").innerHTML=`${rp}%<small>${when?"~"+when.toFixed(1)+" h to breach":"12 h horizon"}</small>`;$("#riskName").textContent=bn;
+  chans.forEach(c=>{const cell=w.querySelector('.cell[data-k="'+c.key+'"]');if(cell)cell.classList.toggle("alarm",best>0.4&&bn.indexOf(c.key)>=0);});
+  $("#budget").innerHTML=`${(s.nis>2?"open":"closed")} <span style="font-size:13px;color:var(--muted)">Δ${((s.nis||1)-1).toFixed(2)}</span>`;$("#nis").textContent=(s.nis||0).toFixed(1);
+  $("#ctrl").textContent=s.recommendation||(s.offline?"offline · autonomous":"nominal");$("#ctrl").style.color=s.recommendation?(s.offline?"var(--green)":"var(--amber)"):"var(--body)";
+  $("#traceName").textContent=(chans[0]&&chans[0].key)+" · engine estimate";
+  const evw=$("#events");evw.innerHTML="";(s.events||[]).slice().reverse().forEach(e=>{const d=el("div","ev "+e[1]);d.innerHTML=`<span class="t">${(+e[0]).toFixed(1)}h</span><span class="lv">${e[1]}</span><span class="m">${e[2]}</span>`;evw.appendChild(d);});
+  if(!s.events||!s.events.length)evw.innerHTML='<div class="ev INFO"><span class="t">—</span><span class="lv">OK</span><span class="m">no events</span></div>';
+}
+function drawChart(hist){const cv=$("#chart");if(!cv||!S.cfg||!hist||hist.length<2)return;const key=S.cfg.channels[0].key;const dpr=Math.min(devicePixelRatio||1,2),w=cv.clientWidth,h=150;cv.width=w*dpr;cv.height=h*dpr;const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,w,h);
+  const vals=hist.map(r=>(r.channels||{})[key]).filter(v=>v!=null);if(vals.length<2)return;const mn=Math.min(...vals),mx=Math.max(...vals),pad=(mx-mn)*0.2+1e-6;
   x.strokeStyle="rgba(120,160,140,.12)";for(let g=0;g<4;g++){const yy=h*g/3;x.beginPath();x.moveTo(0,yy);x.lineTo(w,yy);x.stroke();}
-  x.strokeStyle="#4ade80";x.lineWidth=1.8;x.beginPath();hist.forEach((p,i)=>{const px=i/(hist.length-1)*w,py=h-((p.x[ci]-mn+pad)/((mx-mn)+2*pad))*h;i?x.lineTo(px,py):x.moveTo(px,py);});x.stroke();
-  const last=hist[hist.length-1].x[ci],ly=h-((last-mn+pad)/((mx-mn)+2*pad))*h;x.fillStyle="#7fffd4";x.beginPath();x.arc(w-2,ly,3,0,6.28);x.fill();}
+  x.strokeStyle="#4ade80";x.lineWidth=1.8;x.beginPath();vals.forEach((v,i)=>{const px=i/(vals.length-1)*w,py=h-((v-mn+pad)/((mx-mn)+2*pad))*h;i?x.lineTo(px,py):x.moveTo(px,py);});x.stroke();
+  const ly=h-((vals[vals.length-1]-mn+pad)/((mx-mn)+2*pad))*h;x.fillStyle="#7fffd4";x.beginPath();x.arc(w-2,ly,3,0,6.28);x.fill();}
 
-/* ================= loop control ================= */
-function startEngine(){if(S.running)return;S.running=true;announced={};$("#btnRun").textContent="⏸ Pause";setStatus(true);$("#fEngine").textContent="running";
-  S.timer=setInterval(()=>{ if(S.mode==="live"){fetchLive().then(updateDash);} else {step();updateDash();} },300);}
-function pauseEngine(){S.running=false;clearInterval(S.timer);$("#btnRun").textContent="▶ Start engine";setStatus(false);$("#fEngine").textContent="paused";}
-function setStatus(live){const p=$("#statuspill");p.classList.toggle("live",live);$("#statusText").textContent=live?"engine live · "+S.domain:"engine idle";}
-
-/* ================= live connection to a real node ================= */
-async function apiGet(path){const r=await fetch(S.nodeUrl+path,{cache:"no-store"});if(!r.ok)throw new Error(r.status);return r.json();}
-async function apiPost(path,body){try{await fetch(S.nodeUrl+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});}catch(e){}}
-function setConn(ok,msg){const e=$("#connStatus");if(e){e.textContent=msg;e.style.color=ok?"var(--green)":"var(--muted)";}}
-async function connectNode(url){
-  if(!url)return false; S.nodeUrl=url.replace(/\/+$/,"");
-  try{
-    const st=await apiGet("/api/status");
-    S.mode="live";
-    try{const cfg=await apiGet("/api/config");if(cfg.domain&&cfg.domain!==S.domain)setDomain(cfg.domain);}catch(e){}
-    S.autonomy=st.autonomy;$("#autoTog").classList.toggle("on",S.autonomy);
-    S.offline=st.offline;$("#offlineTog").style.display="inline-flex";$("#offlineTog").classList.toggle("on",S.offline);
-    $("#connTag").textContent="live · connected";$("#connTag").classList.add("g");$("#fEngine").textContent="live";
-    setConn(true,`Connected · ${st.domain} · ${st.cycles} cycles`);
-    if(!S.running)startEngine();
-    return true;
-  }catch(e){ S.mode="sim"; $("#connTag").textContent="offline demo"; $("#connTag").classList.remove("g");
-    setConn(false,"No node reachable at "+(S.nodeUrl||"—")+" — running local simulation."); return false; }
-}
-async function fetchLive(){
-  try{ const s=await apiGet("/api/state"); if(s&&s.ready)mapLive(s);
-    setConn(true,`Connected · ${S.domain}${S.offline?" · offline-autonomous":""} · t=${(S.t||0).toFixed(1)}h`); }
-  catch(e){ setConn(false,"Connection lost — the node keeps running offline. Reconnect when ready."); }
-}
-function mapLive(s){const d=DOMAINS[S.domain];
-  d.channels.forEach(c=>{if(s.channels&&s.channels[c.k]!=null)S.est[c.i]=s.channels[c.k];});
-  const hi=d.states.indexOf(d.hidden);if(s.hidden!=null)S.est[hi]=s.hidden;S.hstd=s.hidden_std||S.hstd;S.t=s.t||S.t;S.nisv=s.nis||1;
-  let best=0,bi=0,when=null;d.safety.forEach((sf,j)=>{const r=s.risks&&s.risks[sf.name];if(r&&r.p>best){best=r.p;bi=j;when=r.t_cross;}});S.riskP=best;S.riskIdx=bi;S.cross=when;
-  S.events=(s.events||[]).slice().reverse().map(e=>({t:e[0],lv:e[1],m:e[2]}));renderEvents();
-  if(s.recommendation)setCtrl(s.recommendation,s.offline?"var(--green)":"var(--amber)");else setCtrl(s.offline?"offline · autonomous":"nominal","var(--body)");
-  S.hist.push({t:S.t,x:S.est.slice()});if(S.hist.length>240)S.hist.shift();
-}
-
-/* ================= calibration ================= */
-function runCalibration(){const d=DOMAINS[S.domain];$("#calProg").style.display="block";const bar=$("#calProg").firstElementChild;let pct=0;$("#calStatus").textContent="sampling posterior (HMC/NUTS)…";$("#btnCal").disabled=true;
-  const iv=setInterval(()=>{pct+=Math.random()*9+3;bar.style.width=Math.min(100,pct)+"%";
-    if(pct>=100){clearInterval(iv);$("#btnCal").disabled=false;$("#calStatus").textContent="converged · 2 chains · 600 draws";
-      const post=$("#post");post.innerHTML="";Object.entries(d.calib).forEach(([k,tv])=>{const med=tv*(1+ (Math.random()*0.12-0.06));const rhat=1.00+Math.random()*0.03,ess=380+Math.floor(Math.random()*260);const tr=el("tr");tr.innerHTML=`<td>${k}</td><td class="r">${med.toFixed(2)}</td><td class="r" style="color:${rhat<1.05?'var(--green)':'var(--amber)'}">${rhat.toFixed(3)}</td><td class="r">${ess}</td>`;post.appendChild(tr);});
-      const ch=d.channels[0].k;$("#drift").innerHTML=`<span class="kpill">drift_${ch} = ${(0.02+Math.random()*0.02).toFixed(3)} /h</span> &nbsp; separated from process — kinetics corrected.`;
-      S.calibrated=true;$("#btnApply").disabled=false;}
-  },160);}
-
-/* ================= nav ================= */
-const META={setup:["01 — Hardware","Node hardware","Choose the compute board and sensor kit. The engine is numpy-only and runs on any of these."],
-  domain:["02 — Domain & sensors","Domain & sensors","Pick the closed loop, wire the channels you have, and set the safety limits to forecast."],
-  calib:["03 — Calibration & data","Calibration & data","Fit this site's kinetics from a logged run, with convergence diagnostics and drift separation."],
-  dash:["04 — Live operations","Live dashboard","The engine running: telemetry, the inferred hidden state, calibrated breach forecast, and control."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");
-  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));
-  const m=META[v];$("#eyebrow").textContent=m[0];$("#title").textContent=m[1];$("#subtitle").textContent=m[2];
-  if(v==="dash")renderTele();}
-
-/* ================= wire up ================= */
+const META={setup:["01 — Hardware","Node hardware","Live from the running node. Every value is computed by the engine and stored on disk."],
+  domain:["02 — Domain & sensors","Domain & sensors","Reconfigure the running engine: domain, wired channels, safety limits."],
+  calib:["03 — Calibration & data","Calibration & data","Ingest real logs and run the real NUTS fit; results are applied to the engine."],
+  dash:["04 — Live operations","Live dashboard","The running engine: real telemetry, inferred hidden state, forecast, events."]};
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#eyebrow").textContent=m[0];$("#title").textContent=m[1];$("#subtitle").textContent=m[2];}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
-$("#btnRun").onclick=()=>S.running?pauseEngine():startEngine();
-$("#btnFault").onclick=()=>{
-  if(S.mode==="live"){apiPost("/api/fault",{});addEvent("INFO","fault injected on the node");return;}
-  if(S.fault)return;S.fault=true;DOMAINS[S.domain].fault.t0=S.t+0.5;const f=DOMAINS[S.domain].fault;if(f.t1)f.t1=S.t+5.5;addEvent("INFO","fault injected — watch the engine catch it");};
-$("#btnReset").onclick=()=>{pauseEngine();resetSim();updateDash();};
-$("#autoTog").onclick=()=>{S.autonomy=!S.autonomy;$("#autoTog").classList.toggle("on",S.autonomy);if(S.mode==="live")apiPost("/api/control",{autonomy:S.autonomy});};
-$("#btnConnect").onclick=()=>connectNode($("#nodeUrl").value.trim()||$("#nodeUrl").placeholder);
-$("#offlineTog").onclick=()=>{S.offline=!S.offline;$("#offlineTog").classList.toggle("on",S.offline);if(S.mode==="live")apiPost("/api/offline",{offline:S.offline});
-  setConn(true,S.offline?"Offline operation ON — node runs autonomously at the edge; this console is optional.":"Online — connected to the node.");};
-$("#btnCal").onclick=runCalibration;
-$("#btnApply").onclick=()=>{$("#calStatus").textContent="applied · edge engine now runs site-tuned kinetics";};
-$("#drop").onclick=()=>{$("#calStatus").textContent="demo log loaded · 96 rows · 24 h";};
+$("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
+$("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
+$("#autoTog").onclick=async()=>{const on=!$("#autoTog").classList.contains("on");$("#autoTog").classList.toggle("on",on);if(S.connected)await post("/api/control",{autonomy:on});};
+$("#offlineTog").onclick=async()=>{const on=!$("#offlineTog").classList.contains("on");$("#offlineTog").classList.toggle("on",on);if(S.connected)await post("/api/offline",{offline:on});$("#connStatus").textContent=on?"Offline operation ON — node runs autonomously; console optional.":"Online — connected.";};
 
-/* init */
-renderBoards();renderTiers();renderBOM();renderDomains();renderChannels();resetSim();renderTele();updateDash();renderEvents();
-/* auto-connect when served by a node (same origin); harmless on static hosts */
-if(location.protocol.startsWith("http")){$("#nodeUrl").value=location.origin;connectNode(location.origin);}
+renderBoards();renderTiers();renderBOM();
+$("#nodeUrl").value=S.base||"";
+connect();
 </script>
 </body>
 </html>
