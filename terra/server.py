@@ -314,6 +314,7 @@ class Platform:
                            status={"cycles": self.cycles, "nis": est.nis,
                                    "autonomy": self.autonomy, "offline": self.offline})
             alertmod.evaluate(self.workspace_id, self.node_id, m)
+            reg.append_history(self.node_id, m)
         except Exception:
             pass
 
@@ -540,6 +541,13 @@ def make_handler(pf: Platform):
                 for nd in nodes:
                     nd["alerts_1h"] = alertmod.active_count(ws, nd["node_id"])
                 return self._send(200, {"nodes": nodes})
+            if p == "/api/nodes/history":
+                if self._user() is None:
+                    return self._send(401, {"error": "sign in"})
+                node = q.get("node", [""])[0]
+                n = int(q.get("n", ["300"])[0])
+                return self._send(200, {"node": node,
+                                        "history": reg.node_history(node, self._ws(), n)})
             if p == "/api/overview":
                 usr = self._user()
                 ws = usr.get("workspace_id") if usr else LOCAL_WS
@@ -702,6 +710,9 @@ def make_handler(pf: Platform):
                         mailer.send_welcome(data.get("email"),
                                             data.get("workspace") or "your workspace",
                                             acc.TRIAL_DAYS, origin=self._origin())
+                        vtok = acc.create_verify(r["user_id"], data.get("email"))
+                        mailer.send_verify(data.get("email"),
+                                           f"{self._origin()}/app?verify={vtok}")
                     except Exception:
                         pass
                 return self._send(200, {"token": r["token"],
@@ -723,6 +734,43 @@ def make_handler(pf: Platform):
                 if t:
                     acc.logout(t)
                 return self._send(200, {"ok": True})
+            if p == "/api/auth/reset-request":
+                tok = acc.create_reset(data.get("email"))
+                if tok:
+                    try:
+                        from . import mailer
+                        mailer.send_reset(data.get("email"),
+                                          f"{self._origin()}/app?reset={tok}")
+                    except Exception:
+                        pass
+                # always 200 so we don't reveal whether an email is registered
+                return self._send(200, {"ok": True})
+            if p == "/api/auth/reset":
+                if acc.reset_password(data.get("token"), data.get("password")):
+                    return self._send(200, {"ok": True})
+                return self._send(400, {"error": "invalid or expired link, or weak password"})
+            if p == "/api/auth/verify":
+                if acc.verify_email(data.get("token")):
+                    return self._send(200, {"ok": True})
+                return self._send(400, {"error": "invalid or expired link"})
+            if p == "/api/auth/verify/resend":
+                u = self._user()
+                if not u:
+                    return self._send(401, {"error": "sign in"})
+                try:
+                    from . import mailer
+                    vtok = acc.create_verify(u["user_id"], u["email"])
+                    mailer.send_verify(u["email"], f"{self._origin()}/app?verify={vtok}")
+                except Exception:
+                    pass
+                return self._send(200, {"ok": True})
+            if p == "/api/account/delete":
+                u = self._role("owner")
+                if u is None:
+                    return
+                audit.log(u["workspace_id"], u.get("email"), "workspace.delete", "")
+                acc.delete_workspace(u["workspace_id"])
+                return self._send(200, {"ok": True})
             if p == "/api/billing/upgrade":
                 u = self._role("admin")
                 if u is None:
@@ -732,11 +780,12 @@ def make_handler(pf: Platform):
                 plan = data.get("plan", "pro")
                 if billing.enabled():
                     origin = self._origin()
+                    qty = max(1, len(reg.list_nodes(u["workspace_id"])))  # bill per node
                     try:
                         sess = billing.create_checkout_session(
                             u["workspace_id"], plan,
                             success_url=origin + "/app?upgraded=1",
-                            cancel_url=origin + "/pricing")
+                            cancel_url=origin + "/pricing", quantity=qty)
                     except Exception as e:
                         return self._send(400, {"error": f"billing error: {e}"})
                     return self._send(200, {"url": sess.get("url"), "plan": plan})
@@ -915,6 +964,7 @@ def make_handler(pf: Platform):
                                domain=data.get("domain"), status=data.get("status"))
                 if data.get("metrics"):
                     alertmod.evaluate(ws, nid or "node", data["metrics"])
+                    reg.append_history(nid or "node", data["metrics"])
                 if data.get("csv"):
                     pf.ingest(data["csv"], f"{nid or 'node'}.csv")
                 return self._send(200, {"ok": True, "node_id": nid, "workspace_id": ws})

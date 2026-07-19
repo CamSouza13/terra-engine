@@ -215,6 +215,8 @@ canvas{width:100%;display:block}
       </div>
     </div>
 
+    <div class="banner" id="verifyBanner" style="display:none">Please confirm your email address. <a href="#" id="resendVerify" style="color:var(--ink)">Resend link</a> · <span id="resendMsg"></span></div>
+
     <div class="banner" id="offlineBanner" style="display:none">Not connected to a node. Start the engine with <code>terra serve</code> and reload, or enter a node URL below.</div>
 
     <section class="view active" id="v-overview">
@@ -329,6 +331,12 @@ canvas{width:100%;display:block}
         <th class="r">Alerts (1h)</th></tr></thead><tbody id="fleetBody"></tbody></table>
         <div class="hint" id="fleetEmpty" style="margin-top:10px;display:none">No nodes yet. Enroll one from Settings, or run a node that reports to this server.</div>
       </div>
+      <div class="card" id="nodeDetail" style="display:none;margin-top:12px">
+        <div class="row" style="justify-content:space-between"><h3 id="ndTitle">Node</h3><button class="btn sm" id="ndClose">Close</button></div>
+        <div class="desc" id="ndMeta"></div>
+        <canvas id="ndChart" height="170"></canvas>
+        <div class="hint" id="ndLegend" style="margin-top:8px"></div>
+      </div>
     </section>
 
     <section class="view" id="v-alerts">
@@ -391,6 +399,15 @@ canvas{width:100%;display:block}
         <div class="desc">Append-only audit log of actions in this workspace.</div>
         <div id="auditList" style="margin-top:6px"></div>
       </div>
+      <div class="card" id="dangerCard" style="margin-top:12px;display:none;border-color:var(--line2)">
+        <h3>Delete workspace</h3>
+        <div class="desc">Permanently deletes this workspace and all its data — members, nodes, alerts, keys, history. This cannot be undone.</div>
+        <div class="row" style="gap:8px;margin-top:8px">
+          <input class="field" id="delConfirm" placeholder="Type the workspace name to confirm" style="width:260px">
+          <button class="btn sm" id="btnDeleteWs">Delete workspace</button>
+        </div>
+        <div class="hint" id="delStatus" style="margin-top:6px"></div>
+      </div>
     </section>
 
     <section class="view" id="v-order">
@@ -431,6 +448,7 @@ canvas{width:100%;display:block}
     <div class="hint" id="authErr" style="color:var(--ink)"></div>
     <button class="btn primary" id="authGo" style="width:100%;margin-top:14px">Continue</button>
     <div style="text-align:center;font-size:12px;color:var(--sec);margin-top:12px"><a href="#" id="authSwap" style="color:var(--sec)">Create an account</a></div>
+    <div style="text-align:center;font-size:12px;margin-top:6px"><a href="#" id="authForgot" style="color:var(--sec)">Forgot password?</a></div>
   </div>
 </div>
 <script>
@@ -444,7 +462,9 @@ const TIERS={"Field / mid-grade":{note:"analog probes, ADC, RP2040",items:[["Boa
 const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
 const S={base:location.protocol.startsWith("http")?location.origin:"",connected:false,cfg:null,timer:null,paused:false,hwBoard:1,hwTier:"Field / mid-grade",
   token:(()=>{try{return localStorage.getItem("terra_token")}catch(e){return null}})(),me:null,authMode:"login",
-  invite:(()=>{try{return new URLSearchParams(location.search).get("invite")}catch(e){return null}})()};
+  invite:(()=>{try{return new URLSearchParams(location.search).get("invite")}catch(e){return null}})(),
+  reset:(()=>{try{return new URLSearchParams(location.search).get("reset")}catch(e){return null}})(),
+  verify:(()=>{try{return new URLSearchParams(location.search).get("verify")}catch(e){return null}})()};
 
 async function api(path,opts){opts=opts||{};const h=Object.assign({},opts.headers||{});if(S.token)h.Authorization="Bearer "+S.token;const r=await fetch(S.base+path,Object.assign({cache:"no-store"},opts,{headers:h}));if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e;}return r.json();}
 async function post(path,body){return api(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});}
@@ -549,16 +569,43 @@ function applyPlan(){
   const cs=$("#calStatus");if(cs&&!cal)cs.innerHTML='Calibration is a Pro feature. <a href="/pricing" style="color:var(--ink)">Upgrade</a>';
   const at=$("#autoTog");if(at){at.style.opacity=ctl?"1":".5";at.dataset.locked=ctl?"":"1";}
 }
-async function initAuth(){try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();
+async function initAuth(){
+  if(S.verify){try{await post("/api/auth/verify",{token:S.verify});}catch(e){}}
+  try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();
+  const u=S.me&&S.me.user;
+  if(S.me&&S.me.auth_enforced&&u){
+    if(u.verified===false)$("#verifyBanner").style.display="block";
+    if(u.role==="owner")$("#dangerCard").style.display="block";
+  }
   const needAuth=S.me&&S.me.auth_enforced&&!S.me.authenticated;
-  if(S.invite&&needAuth){S.authMode="signup";$("#authTitle").textContent="Accept your invite";$("#authSub").textContent="Set a password to join the workspace.";$("#authGo").textContent="Join workspace";$("#authSwap").style.display="none";showAuth();}
+  if(S.reset){showAuth();setAuthMode("reset");return;}
+  if(S.invite&&needAuth){S.authMode="signup";$("#authTitle").textContent="Accept your invite";$("#authSub").textContent="Set a password to join the workspace.";$("#authGo").textContent="Join workspace";$("#authSwap").parentElement.style.display="none";$("#authForgot").parentElement.style.display="none";showAuth();}
   else if(needAuth)showAuth();}
 function showAuth(){$("#authOverlay").style.display="flex";}
-$("#authSwap").onclick=e=>{e.preventDefault();S.authMode=S.authMode==="login"?"signup":"login";const su=S.authMode==="signup";$("#authTitle").textContent=su?"Create your workspace":"Sign in to Terra";$("#authSub").textContent=su?"14 days free, every feature, no card.":"Your workspace and nodes.";$("#authSwap").textContent=su?"Have an account? Sign in":"Create an account";$("#authGo").textContent=su?"Create account":"Sign in";};
+function setAuthMode(m){S.authMode=m;
+  const T={login:["Sign in to Terra","Your workspace and nodes.","Sign in"],
+    signup:["Create your workspace","14 days free, every feature, no card.","Create account"],
+    "reset-request":["Reset your password","Enter your email and we'll send a reset link.","Send reset link"],
+    reset:["Set a new password","Choose a new password for your account.","Update password"]}[m]||T.login;
+  $("#authTitle").textContent=T[0];$("#authSub").textContent=T[1];$("#authGo").textContent=T[2];
+  $("#authEmail").style.display=(m==="reset")?"none":"block";
+  $("#authPw").style.display=(m==="reset-request")?"none":"block";
+  $("#authPw").placeholder=(m==="reset")?"New password (8+ characters)":"Password (8+ characters)";
+  $("#authSwap").textContent=(m==="signup")?"Have an account? Sign in":"Create an account";
+  $("#authSwap").parentElement.style.display=(m==="login"||m==="signup")?"block":"none";
+  $("#authForgot").parentElement.style.display=(m==="login")?"block":"none";
+  $("#authErr").textContent="";}
+$("#authSwap").onclick=e=>{e.preventDefault();setAuthMode(S.authMode==="login"?"signup":"login");};
+$("#authForgot").onclick=e=>{e.preventDefault();setAuthMode("reset-request");};
 $("#authGo").onclick=async()=>{const email=$("#authEmail").value.trim(),pw=$("#authPw").value;$("#authErr").textContent="";
-  const body={email,password:pw};if(S.authMode==="signup"&&S.invite)body.invite_token=S.invite;
-  try{const r=await post("/api/auth/"+(S.authMode==="signup"?"signup":"login"),body);S.token=r.token;try{localStorage.setItem("terra_token",S.token);}catch(e){}location.href=location.pathname;}
-  catch(e){$("#authErr").textContent=S.authMode==="signup"?(S.invite?"Could not accept invite. It may be expired, or the email is already in use.":"Could not create account. Email may be in use, or the password is under 8 characters."):"Invalid email or password.";}};
+  try{
+    if(S.authMode==="reset-request"){await post("/api/auth/reset-request",{email});$("#authErr").style.color="var(--sec)";$("#authErr").textContent="If that email has an account, a reset link is on its way.";return;}
+    if(S.authMode==="reset"){await post("/api/auth/reset",{token:S.reset,password:pw});$("#authErr").style.color="var(--sec)";$("#authErr").textContent="Password updated. You can sign in now.";setTimeout(()=>{location.href="/app";},1200);return;}
+    const body={email,password:pw};if(S.authMode==="signup"&&S.invite)body.invite_token=S.invite;
+    const r=await post("/api/auth/"+(S.authMode==="signup"?"signup":"login"),body);S.token=r.token;try{localStorage.setItem("terra_token",S.token);}catch(e){}location.href=location.pathname;}
+  catch(e){$("#authErr").style.color="var(--ink)";$("#authErr").textContent=S.authMode==="signup"?(S.invite?"Could not accept invite. It may be expired, or the email is already in use.":"Could not create account. Email may be in use, or the password is under 8 characters."):S.authMode==="reset"?"That reset link is invalid or expired.":"Invalid email or password.";}};
+$("#resendVerify").onclick=async(e)=>{e.preventDefault();try{await post("/api/auth/verify/resend",{});$("#resendMsg").textContent="Sent.";}catch(err){$("#resendMsg").textContent="Try again later.";}};
+$("#btnDeleteWs").onclick=async()=>{const name=(S.me&&S.me.user&&S.me.user.workspace)||"";if($("#delConfirm").value.trim()!==name){$("#delStatus").textContent='Type "'+name+'" exactly to confirm.';return;}if(!confirm("Permanently delete this workspace and all its data?"))return;try{await post("/api/account/delete",{});try{localStorage.removeItem("terra_token");}catch(e){}location.href="/";}catch(e){$("#delStatus").textContent=e.status===403?"Only the owner can delete the workspace.":"Could not delete.";}};
 $("#acctBtn").onclick=()=>{if(S.me&&S.me.authenticated)location.href="/pricing";else showAuth();};
 $("#logoutLink").onclick=async()=>{try{await post("/api/auth/logout",{});}catch(e){}try{localStorage.removeItem("terra_token");}catch(e){}S.token=null;location.reload();};
 
@@ -624,7 +671,26 @@ $("#btnSupport").onclick=async()=>{const body={email:$("#sEmail").value.trim(),s
 const _sm=$("#sideMedia");if(_sm)_sm.addEventListener("error",()=>{_sm.style.display="none";},true);
 
 function fmtAge(s){if(s==null)return "—";if(s<60)return Math.round(s)+"s ago";if(s<3600)return Math.round(s/60)+"m ago";return Math.round(s/3600)+"h ago";}
-async function loadFleet(){try{const d=await api("/api/fleet");const b=$("#fleetBody");b.innerHTML="";const nodes=d.nodes||[];$("#fleetCount").textContent=nodes.length+" node"+(nodes.length===1?"":"s");$("#fleetEmpty").style.display=nodes.length?"none":"block";nodes.forEach(n=>{const tr=el("tr");const dot=n.stale?'<span style="color:var(--sec)">● stale</span>':'<span style="color:var(--ink)">● live</span>';tr.innerHTML=`<td><b>${n.name}</b><div class="hint">${n.node_id}</div></td><td style="color:var(--sec)">${n.domain||"—"}</td><td>${dot}</td><td class="r tn">${fmtAge(n.age_s)}</td><td class="r tn">${n.alerts_1h||0}</td>`;b.appendChild(tr);});}catch(e){}}
+async function loadFleet(){try{const d=await api("/api/fleet");const b=$("#fleetBody");b.innerHTML="";const nodes=d.nodes||[];$("#fleetCount").textContent=nodes.length+" node"+(nodes.length===1?"":"s");$("#fleetEmpty").style.display=nodes.length?"none":"block";nodes.forEach(n=>{const tr=el("tr");const dot=n.stale?'<span style="color:var(--sec)">● stale</span>':'<span style="color:var(--ink)">● live</span>';tr.innerHTML=`<td><b class="ndlink" style="cursor:pointer;text-decoration:underline;text-underline-offset:2px">${n.name}</b><div class="hint">${n.node_id}</div></td><td style="color:var(--sec)">${n.domain||"—"}</td><td>${dot}</td><td class="r tn">${fmtAge(n.age_s)}</td><td class="r tn">${n.alerts_1h||0}</td>`;tr.querySelector(".ndlink").onclick=()=>openNode(n);b.appendChild(tr);});}catch(e){}}
+let ndCurrent=null;
+async function openNode(n){ndCurrent=n;$("#nodeDetail").style.display="block";$("#ndTitle").textContent=n.name;$("#ndMeta").textContent=(n.domain||"—")+" · "+(n.stale?"stale":"live")+" · last seen "+fmtAge(n.age_s);
+  try{const d=await api("/api/nodes/history?node="+encodeURIComponent(n.node_id)+"&n=300");drawNodeChart(d.history||[]);}catch(e){drawNodeChart([]);}
+  $("#nodeDetail").scrollIntoView({behavior:"smooth",block:"nearest"});}
+$("#ndClose").onclick=()=>{$("#nodeDetail").style.display="none";ndCurrent=null;};
+const NDPAL=["#4f9dff","#5fd0a0","#e0a25f","#c77dff","#ff6f91","#7bd4d4"];
+function drawNodeChart(hist){const cv=$("#ndChart");if(!cv)return;const w=cv.clientWidth||600,h=170;cv.width=w;cv.height=h;const ctx=cv.getContext("2d");ctx.clearRect(0,0,w,h);
+  const legend=$("#ndLegend");
+  if(!hist.length){legend.textContent="No history yet — heartbeats will appear here.";return;}
+  const ink=getComputedStyle(document.documentElement).getPropertyValue("--ink")||"#000";
+  const line=getComputedStyle(document.documentElement).getPropertyValue("--line2")||"#ccc";
+  const keys=Object.keys(hist[hist.length-1].channels||{}).slice(0,5);
+  const series=keys.map(k=>({label:k,vals:hist.map(r=>(r.channels||{})[k])}));
+  series.push({label:"nis",vals:hist.map(r=>r.nis)});
+  const pad=8,n=hist.length;
+  ctx.strokeStyle=line;ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(pad,h-pad);ctx.lineTo(w-pad,h-pad);ctx.stroke();
+  const parts=[];
+  series.forEach((s,si)=>{const nums=s.vals.filter(v=>typeof v==="number");if(nums.length<2)return;const mn=Math.min(...nums),mx=Math.max(...nums),rng=(mx-mn)||1;const col=NDPAL[si%NDPAL.length];ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.beginPath();let started=false;s.vals.forEach((v,i)=>{if(typeof v!=="number")return;const x=pad+(w-2*pad)*(n>1?i/(n-1):0);const y=(h-pad)-(h-2*pad)*((v-mn)/rng);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);});ctx.stroke();parts.push('<span style="color:'+col+'">■</span> '+s.label);});
+  legend.innerHTML=parts.join(" &nbsp; ")+' <span style="color:var(--muted)">· each series scaled to its own range · '+n+' points</span>';}
 
 async function loadAlerts(){const gated=!planAllows("alerts")&&S.me&&S.me.auth_enforced;$("#alertGate").style.display=gated?"block":"none";$("#alertBody").style.display=gated?"none":"block";if(gated)return;try{renderRules((await api("/api/alerts/rules")).rules||[]);}catch(e){}try{renderAlertEvents((await api("/api/alerts/events?n=40")).events||[]);}catch(e){}}
 function renderRules(rules){const w=$("#rulesList");w.innerHTML="";if(!rules.length){w.innerHTML='<div class="hint">No rules yet.</div>';return;}rules.forEach(r=>{const d=el("div");d.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--line)";const via=r.delivery&&r.delivery!=="none"?(" · "+r.delivery):"";d.innerHTML=`<div><b>${r.name}</b><div class="hint">${r.metric} ${r.op} ${r.threshold}${via}</div></div>`;const del=el("button","btn sm","Delete");del.onclick=async()=>{await post("/api/alerts/rules/delete",{id:r.id});loadAlerts();};d.appendChild(del);w.appendChild(d);});}

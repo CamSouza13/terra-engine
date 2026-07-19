@@ -39,21 +39,28 @@ def _price_for(plan: str) -> str | None:
 
 
 def create_checkout_session(workspace_id: int, plan: str,
-                            success_url: str, cancel_url: str) -> dict:
-    """Create a subscription Checkout session; returns Stripe's JSON (has 'url')."""
+                            success_url: str, cancel_url: str,
+                            quantity: int = 1) -> dict:
+    """Create a subscription Checkout session; returns Stripe's JSON (has 'url').
+
+    ``quantity`` bills per unit (per node) against a per-unit price. Set the Stripe
+    price's billing to per-unit so "$49 / node" scales with enrolled nodes.
+    """
     key = os.environ["STRIPE_SECRET_KEY"]
     price = _price_for(plan)
     if not price:
         raise ValueError(f"no Stripe price configured for plan '{plan}'")
+    qty = max(1, int(quantity or 1))
     params = {
         "mode": "subscription",
         "success_url": success_url,
         "cancel_url": cancel_url,
         "client_reference_id": str(workspace_id),
         "line_items[0][price]": price,
-        "line_items[0][quantity]": "1",
+        "line_items[0][quantity]": str(qty),
         "metadata[workspace_id]": str(workspace_id),
         "metadata[plan]": plan,
+        "metadata[quantity]": str(qty),
         "subscription_data[metadata][workspace_id]": str(workspace_id),
         "subscription_data[metadata][plan]": plan,
     }

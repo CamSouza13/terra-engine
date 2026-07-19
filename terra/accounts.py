@@ -67,7 +67,15 @@ def init_db():
     CREATE TABLE IF NOT EXISTS invites(
       token_hash TEXT PRIMARY KEY, workspace_id INTEGER, email TEXT, role TEXT,
       created REAL, expires REAL, used INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS tokens(
+      token_hash TEXT PRIMARY KEY, kind TEXT, user_id INTEGER, email TEXT,
+      created REAL, expires REAL, used INTEGER DEFAULT 0);
     """)
+    # add the email-verified flag to existing installs (no-op if already present)
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN verified INTEGER DEFAULT 0")
+    except Exception:
+        pass
     c.commit()
     c.close()
 
@@ -169,10 +177,11 @@ def session_user(token: str) -> dict | None:
     u = c.execute("SELECT * FROM users WHERE id=?", (s["user_id"],)).fetchone()
     ws = c.execute("SELECT * FROM workspaces WHERE id=?", (u["workspace_id"],)).fetchone()
     c.close()
+    verified = bool(u["verified"]) if "verified" in u.keys() else True
     return {"user_id": u["id"], "email": u["email"], "role": u["role"],
             "workspace_id": ws["id"], "workspace": ws["name"],
             "plan": effective_plan(ws), "raw_plan": ws["plan"],
-            "trial_ends": ws["trial_ends"]}
+            "trial_ends": ws["trial_ends"], "verified": verified}
 
 
 def workspace_user(workspace_id: int) -> dict | None:
@@ -260,6 +269,101 @@ def remove_member(workspace_id: int, user_id: int) -> bool:
         return False
     c.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
     c.execute("DELETE FROM users WHERE id=?", (user_id,))
+    c.commit()
+    c.close()
+    return True
+
+
+def _new_token(kind: str, user_id: int, email: str, ttl_days: int) -> str:
+    tok = kind[:3] + "_" + secrets.token_urlsafe(20)
+    now = time.time()
+    c = _conn()
+    c.execute("INSERT INTO tokens(token_hash,kind,user_id,email,created,expires,used) "
+              "VALUES(?,?,?,?,?,?,0)",
+              (_h(tok), kind, user_id, email, now, now + ttl_days * 86400))
+    c.commit()
+    c.close()
+    return tok
+
+
+def _consume_token(token: str, kind: str):
+    c = _conn()
+    row = c.execute("SELECT * FROM tokens WHERE token_hash=? AND kind=?",
+                    (_h(token), kind)).fetchone()
+    if not row or row["used"] or (row["expires"] or 0) < time.time():
+        c.close()
+        return None
+    c.execute("UPDATE tokens SET used=1 WHERE token_hash=?", (_h(token),))
+    c.commit()
+    c.close()
+    return row
+
+
+def create_reset(email: str) -> str | None:
+    """Password-reset token for an existing account, or None if no such email."""
+    init_db()
+    email = (email or "").strip().lower()
+    c = _conn()
+    u = c.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+    c.close()
+    if not u:
+        return None
+    return _new_token("reset", u["id"], email, ttl_days=1)
+
+
+def reset_password(token: str, new_password: str) -> bool:
+    init_db()
+    if len(new_password or "") < 8:
+        return False
+    row = _consume_token(token, "reset")
+    if not row:
+        return False
+    salt = secrets.token_hex(16)
+    c = _conn()
+    c.execute("UPDATE users SET salt=?, pw=? WHERE id=?",
+              (salt, _hash(new_password, salt), row["user_id"]))
+    c.execute("DELETE FROM sessions WHERE user_id=?", (row["user_id"],))  # log out everywhere
+    c.commit()
+    c.close()
+    return True
+
+
+def create_verify(user_id: int, email: str) -> str:
+    init_db()
+    return _new_token("verify", user_id, email, ttl_days=7)
+
+
+def verify_email(token: str) -> bool:
+    init_db()
+    row = _consume_token(token, "verify")
+    if not row:
+        return False
+    c = _conn()
+    c.execute("UPDATE users SET verified=1 WHERE id=?", (row["user_id"],))
+    c.commit()
+    c.close()
+    return True
+
+
+def delete_workspace(workspace_id: int) -> bool:
+    """Permanently delete a workspace and all data scoped to it (GDPR/CCPA)."""
+    init_db()
+    c = _conn()
+    uids = [r["id"] for r in c.execute("SELECT id FROM users WHERE workspace_id=?",
+                                       (workspace_id,)).fetchall()]
+    for uid in uids:
+        c.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+        c.execute("DELETE FROM tokens WHERE user_id=?", (uid,))
+    c.execute("DELETE FROM users WHERE workspace_id=?", (workspace_id,))
+    c.execute("DELETE FROM invites WHERE workspace_id=?", (workspace_id,))
+    c.execute("DELETE FROM workspaces WHERE id=?", (workspace_id,))
+    # best-effort cleanup of data owned by other modules (tables may not all exist)
+    for tbl in ("nodes", "node_creds", "enroll_tokens", "api_keys", "alert_rules",
+                "alert_events", "orders", "tickets", "audit"):
+        try:
+            c.execute(f"DELETE FROM {tbl} WHERE workspace_id=?", (workspace_id,))
+        except Exception:
+            pass
     c.commit()
     c.close()
     return True

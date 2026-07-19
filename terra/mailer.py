@@ -99,6 +99,25 @@ def send_order_confirmation(to: str, order_id: int, board: str, tier: str,
     return send(to, f"{BRAND} order #{order_id} received", text, html)
 
 
+def send_reset(to: str, link: str) -> bool:
+    text = (f"Reset your {BRAND} password using this link (valid 24 hours):\n\n{link}\n\n"
+            f"If you didn't request this, you can ignore this email.\n\n{BRAND} · {TAGLINE}")
+    html = _wrap_html("Reset your password",
+                      "Use the button below to set a new password. This link is valid "
+                      "for 24 hours. If you didn't request it, you can ignore this email.",
+                      cta=("Reset password", link))
+    return send(to, f"Reset your {BRAND} password", text, html)
+
+
+def send_verify(to: str, link: str) -> bool:
+    text = (f"Confirm your email to finish setting up your {BRAND} account:\n\n{link}\n\n"
+            f"{BRAND} · {TAGLINE}")
+    html = _wrap_html("Confirm your email",
+                      "One quick step — confirm this is your email address.",
+                      cta=("Confirm email", link))
+    return send(to, f"Confirm your email for {BRAND}", text, html)
+
+
 def send_invite(to: str, workspace: str, role: str, link: str,
                 inviter: str = "") -> bool:
     by = f" by {inviter}" if inviter else ""

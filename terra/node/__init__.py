@@ -13,6 +13,8 @@ from .driver import SensorDriver, SimulatedDriver
 from .runner import NodeRunner, NodeConfig
 from .actuator import ActuatorDriver, SimulatedActuatorDriver
 from .selftest import self_test
+from .hardware import (Probe, ConstantProbe, LinearProbe, AtlasEZO, HardwareDriver)
 
 __all__ = ["SensorDriver", "SimulatedDriver", "NodeRunner", "NodeConfig",
-           "ActuatorDriver", "SimulatedActuatorDriver", "self_test"]
+           "ActuatorDriver", "SimulatedActuatorDriver", "self_test",
+           "Probe", "ConstantProbe", "LinearProbe", "AtlasEZO", "HardwareDriver"]

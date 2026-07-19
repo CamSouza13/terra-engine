@@ -19,6 +19,8 @@ All of it is stdlib SQLite in the same ``$TERRA_HOME/terra.db`` as accounts.
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import secrets
 import time
 
@@ -26,6 +28,53 @@ from .accounts import _conn, init_db as _acc_init
 
 ENROLL_TOKEN_TTL = 3600          # enrollment tokens last one hour
 STALE_AFTER = 120.0              # a node unheard-from this long is "stale" (s)
+NODE_HIST_CAP = 3000             # per-node heartbeat rows retained on disk
+
+
+def _node_dir() -> str:
+    d = os.path.join(os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra")), "nodes")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _hist_path(node_id: str) -> str:
+    safe = "".join(ch for ch in (node_id or "node") if ch.isalnum() or ch in "-_")
+    return os.path.join(_node_dir(), safe + ".jsonl")
+
+
+def append_history(node_id: str, metrics: dict):
+    """Append one heartbeat's metrics to the node's on-disk history (capped)."""
+    if not node_id:
+        return
+    rec = {"ts": time.time(), "nis": metrics.get("nis"), "hidden": metrics.get("hidden"),
+           "channels": metrics.get("channels") or {}}
+    p = _hist_path(node_id)
+    try:
+        with open(p, "a") as f:
+            f.write(json.dumps(rec) + "\n")
+        if os.path.getsize(p) > NODE_HIST_CAP * 400:   # occasional trim to the cap
+            lines = open(p).read().splitlines()[-NODE_HIST_CAP:]
+            with open(p, "w") as f:
+                f.write("\n".join(lines) + "\n")
+    except Exception:
+        pass
+
+
+def node_history(node_id: str, workspace_id: int, n: int = 300) -> list:
+    """Return the last n heartbeats for a node the workspace owns."""
+    c = _conn()
+    row = c.execute("SELECT workspace_id FROM nodes WHERE node_id=?", (node_id,)).fetchone()
+    c.close()
+    if not row or row["workspace_id"] != workspace_id:
+        return []
+    p = _hist_path(node_id)
+    if not os.path.exists(p):
+        return []
+    try:
+        lines = open(p).read().splitlines()[-int(n):]
+        return [json.loads(x) for x in lines if x.strip()]
+    except Exception:
+        return []
 
 
 def init_db():
