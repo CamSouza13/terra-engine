@@ -662,6 +662,13 @@ def make_handler(pf: Platform):
                 except ValueError as e:
                     return self._send(400, {"error": str(e)})
                 audit.log(r["workspace_id"], data.get("email"), "account.create", "trial started")
+                try:
+                    from . import mailer
+                    mailer.send_welcome(data.get("email"),
+                                        data.get("workspace") or "your workspace",
+                                        acc.TRIAL_DAYS, origin=self._origin())
+                except Exception:
+                    pass
                 return self._send(200, {"token": r["token"],
                                         "user": acc.session_user(r["token"])})
             if p == "/api/auth/login":

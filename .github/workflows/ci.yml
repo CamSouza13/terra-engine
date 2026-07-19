@@ -59,6 +59,9 @@ jobs:
       - name: Run report + audit tests
         run: python tests/test_reports_audit.py
 
+      - name: Run customer email tests
+        run: python tests/test_mailer.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

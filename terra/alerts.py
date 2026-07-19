@@ -17,11 +17,8 @@ Rule metrics:
 from __future__ import annotations
 
 import json
-import os
-import smtplib
 import time
 import urllib.request
-from email.message import EmailMessage
 
 from .accounts import _conn, init_db as _acc_init
 
@@ -182,24 +179,10 @@ def _deliver(rule: dict, message: str) -> bool:
 
 
 def _send_email(to: str | None, subject: str | None, body: str) -> bool:
-    host = os.environ.get("TERRA_SMTP_HOST")
-    if not host or not to:
-        return False  # not configured; event is still recorded
-    port = int(os.environ.get("TERRA_SMTP_PORT", "587"))
-    user = os.environ.get("TERRA_SMTP_USER")
-    pw = os.environ.get("TERRA_SMTP_PASS")
-    sender = os.environ.get("TERRA_SMTP_FROM", user or "alerts@terra.local")
-    m = EmailMessage()
-    m["From"] = sender
-    m["To"] = to
-    m["Subject"] = f"[Terra] {subject}"
-    m.set_content(body)
-    with smtplib.SMTP(host, port, timeout=10) as s:
-        s.starttls()
-        if user and pw:
-            s.login(user, pw)
-        s.send_message(m)
-    return True
+    if not to:
+        return False  # not configured / no recipient; event is still recorded
+    from .mailer import send
+    return send(to, f"[Terra] {subject}", body)
 
 
 def _post_json(url: str | None, payload: dict) -> bool:

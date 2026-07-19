@@ -30,12 +30,13 @@ def init_db():
 
 
 def _notify(subject: str, body: str):
+    """Internal heads-up to the team address (if TERRA_SUPPORT_EMAIL is set)."""
     to = os.environ.get("TERRA_SUPPORT_EMAIL")
     if not to:
         return
     try:
-        from .alerts import _send_email
-        _send_email(to, subject, body)
+        from .mailer import send
+        send(to, f"[Terra] {subject}", body)
     except Exception:
         pass
 
@@ -55,6 +56,11 @@ def create_order(email: str, board: str, tier: str, qty: int = 1,
     c.close()
     _notify(f"New parts order #{oid}",
             f"{email}\n{qty} x {board} / {tier}\n\n{notes}")
+    try:
+        from .mailer import send_order_confirmation
+        send_order_confirmation(email, oid, board, tier, qty)   # confirm to the customer
+    except Exception:
+        pass
     return oid
 
 
@@ -71,6 +77,11 @@ def create_ticket(email: str, subject: str, body: str,
     c.commit()
     c.close()
     _notify(f"New support ticket #{tid}: {subject}", f"{email}\n\n{body}")
+    try:
+        from .mailer import send_ticket_confirmation
+        send_ticket_confirmation(email, tid, subject)   # confirm to the customer
+    except Exception:
+        pass
     return tid
 
 
