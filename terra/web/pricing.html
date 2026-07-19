@@ -44,7 +44,7 @@ li.no::before{content:"·"}
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><div class="brand">Terra</div><div><a href="/docs">API</a><a href="/order">Order</a><a href="/">Open console</a></div></div>
+  <div class="top"><div class="brand">Terra</div><div><a href="/docs">API</a><a href="/order">Order</a><a href="/app">Open console</a></div></div>
   <div style="height:170px;border-radius:16px;margin:2px 0 22px;background-image:linear-gradient(90deg,rgba(9,11,17,.72),rgba(9,11,17,.12)),url('/assets/hero.jpg');background-size:cover;background-position:center;border:0.5px solid var(--line)"></div>
   <h1>Simple pricing for closed loops.</h1>
   <div class="lede">One inference engine, per node. From a fish farm to a habitat.</div>
@@ -103,13 +103,13 @@ const base=location.origin, tok=(()=>{try{return localStorage.getItem("terra_tok
 document.querySelectorAll(".btn").forEach(b=>b.onclick=async()=>{
   const plan=b.dataset.plan;
   if(plan==="fleet"){location.href="mailto:cameron@terralaboratories.com?subject=Terra%20Fleet";return;}
-  if(plan==="free"||!tok){location.href="/";return;}
+  if(plan==="free"||!tok){location.href="/app";return;}
   b.textContent="Redirecting…";
   try{
     const r=await fetch(base+"/api/billing/upgrade",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({plan})});
     const d=await r.json();
     if(d.url){location.href=d.url;return;}   // real Stripe Checkout
-    location.href="/";                        // stub (Stripe not configured)
+    location.href="/app";                        // stub (Stripe not configured)
   }catch(e){b.textContent="Try again";}
 });
 </script>

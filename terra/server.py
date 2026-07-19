@@ -631,17 +631,24 @@ def make_handler(pf: Platform):
                 if os.path.isfile(f):
                     return self._send(200, open(f, "rb").read(), "image/x-icon")
                 return self._send(404, {"error": "no favicon"})
-            for _page in ("pricing", "order", "support", "docs"):
+            for _page in ("pricing", "order", "support", "docs", "terms", "privacy"):
                 if p in ("/" + _page, "/" + _page + ".html"):
                     f = os.path.join(WEB_DIR, _page + ".html")
                     if os.path.exists(f):
                         return self._send(200, open(f, "rb").read(), "text/html; charset=utf-8")
                     return self._send(404, {"error": _page + " not bundled"})
-            if p in ("/", "/index.html"):
+            if p in ("/app", "/console", "/index.html"):
                 f = os.path.join(WEB_DIR, "index.html")
                 if os.path.exists(f):
                     return self._send(200, open(f, "rb").read(), "text/html; charset=utf-8")
                 return self._send(404, {"error": "console not bundled"})
+            if p in ("/", "/home", "/landing"):
+                f = os.path.join(WEB_DIR, "landing.html")
+                if not os.path.exists(f):   # fall back to the console if no landing bundled
+                    f = os.path.join(WEB_DIR, "index.html")
+                if os.path.exists(f):
+                    return self._send(200, open(f, "rb").read(), "text/html; charset=utf-8")
+                return self._send(404, {"error": "not bundled"})
             return self._send(404, {"error": "not found"})
 
         def do_POST(self):
@@ -698,7 +705,7 @@ def make_handler(pf: Platform):
                     try:
                         sess = billing.create_checkout_session(
                             u["workspace_id"], plan,
-                            success_url=origin + "/?upgraded=1",
+                            success_url=origin + "/app?upgraded=1",
                             cancel_url=origin + "/pricing")
                     except Exception as e:
                         return self._send(400, {"error": f"billing error: {e}"})
