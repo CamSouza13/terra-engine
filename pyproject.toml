@@ -45,7 +45,7 @@ include = ["terra*"]
 version = { attr = "terra.__version__" }
 
 [tool.setuptools.package-data]
-terra = ["web/*.html"]
+terra = ["web/*.html", "web/assets/*"]
 
 [tool.ruff]
 line-length = 100

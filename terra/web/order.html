@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Terra — Order a node</title>
+<style>
+:root{--bg:#f5f5f4;--panel:#fff;--fill:#efefec;--line:rgba(0,0,0,.08);--line2:rgba(0,0,0,.16);--ink:#1c1c1e;--sec:#6e6e73;--muted:#a1a1a6;--sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;}
+@media(prefers-color-scheme:dark){:root{--bg:#0b0b0c;--panel:#161618;--fill:#1e1e21;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.20);--ink:#f2f2f2;--sec:#98989e;--muted:#6b6b70;}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:56px 20px 80px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
+.brand{font-weight:500;font-size:16px}
+.top a{color:var(--sec);font-size:13px;text-decoration:none;margin-left:16px}
+h1{font-size:30px;font-weight:500;letter-spacing:-.02em}
+.lede{color:var(--sec);font-size:15px;margin-top:8px}
+.card{background:var(--panel);border:0.5px solid var(--line);border-radius:16px;padding:26px 24px;margin-top:28px}
+label{display:block;font-size:12px;color:var(--sec);margin:16px 0 6px}
+.field{width:100%;font-size:14px;padding:11px 12px;background:var(--bg);border:0.5px solid var(--line2);border-radius:10px;color:var(--ink)}
+textarea.field{min-height:90px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+.btn{all:unset;cursor:pointer;text-align:center;font-size:14px;padding:12px;border-radius:10px;background:var(--ink);color:var(--bg);margin-top:22px;display:block}
+.btn:hover{opacity:.88}
+.note{font-size:12px;color:var(--muted);margin-top:14px}
+.ok{color:var(--ink);font-size:14px;margin-top:16px}
+.priceline{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div class="brand">Terra</div><div><a href="/pricing">Pricing</a><a href="/support">Support</a><a href="/">Console</a></div></div>
+  <h1>Order a node</h1>
+  <div class="lede">Pick a board and a sensor tier. We build, calibrate, and ship it enrollment-ready — power it on and it joins your workspace.</div>
+
+  <div class="card">
+    <div class="row">
+      <div><label>Board</label>
+        <select class="field" id="board">
+          <option value="Pi Zero 2 W">Pi Zero 2 W — field, $15</option>
+          <option value="Raspberry Pi 4 (4 GB)" selected>Raspberry Pi 4 (4 GB) — pilot, $58</option>
+          <option value="Raspberry Pi 5 (4 GB)">Raspberry Pi 5 (4 GB) — fastest, $60</option>
+        </select>
+      </div>
+      <div><label>Sensor tier</label>
+        <select class="field" id="tier">
+          <option value="Field / mid-grade" selected>Field / mid-grade — from $390</option>
+          <option value="Lab-grade">Lab-grade (Atlas EZO) — from $1,050</option>
+          <option value="Bring-your-own">Bring-your-own probes — from $125</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label>Quantity</label><input class="field" id="qty" type="number" min="1" value="1"></div>
+      <div><label>Domain</label>
+        <select class="field" id="domain">
+          <option value="aquaculture">Aquaculture (RAS)</option>
+          <option value="soil">Soil / CEA</option>
+          <option value="bioremediation">Bioremediation</option>
+          <option value="blss">BLSS (habitat air)</option>
+        </select>
+      </div>
+    </div>
+    <label>Your email</label><input class="field" id="email" type="email" placeholder="you@company.com">
+    <label>Notes (site, timeline, integration needs)</label><textarea class="field" id="notes" placeholder="Optional"></textarea>
+    <button class="btn" id="submit">Request this build</button>
+    <div class="ok" id="ok"></div>
+    <div class="note">This sends a build request, not a charge. We confirm the quote and lead time by email before anything ships.</div>
+  </div>
+</div>
+<script>
+const base=location.origin, tok=(()=>{try{return localStorage.getItem("terra_token")}catch(e){return null}})();
+document.getElementById("submit").onclick=async()=>{
+  const b=document.getElementById("submit");
+  const body={email:document.getElementById("email").value.trim(),board:document.getElementById("board").value,tier:document.getElementById("tier").value,qty:parseInt(document.getElementById("qty").value||"1"),notes:"["+document.getElementById("domain").value+"] "+document.getElementById("notes").value.trim()};
+  if(!body.email.includes("@")){document.getElementById("ok").textContent="Please enter a valid email.";return;}
+  b.textContent="Sending…";
+  try{
+    const h={"Content-Type":"application/json"};if(tok)h.Authorization="Bearer "+tok;
+    const r=await fetch(base+"/api/orders",{method:"POST",headers:h,body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.ok){document.getElementById("ok").textContent="Request received (#"+d.order_id+"). We'll email you a quote and lead time.";b.textContent="Requested ✓";}
+    else{document.getElementById("ok").textContent=d.error||"Something went wrong.";b.textContent="Request this build";}
+  }catch(e){document.getElementById("ok").textContent="Network error — try again.";b.textContent="Request this build";}
+};
+</script>
+</body>
+</html>

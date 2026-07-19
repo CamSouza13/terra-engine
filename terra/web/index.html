@@ -117,20 +117,48 @@ input{outline:none;font-family:inherit}
 .banner code{font-family:var(--mono);color:var(--ink)}
 canvas{width:100%;display:block}
 .kpill{font-size:12px;color:var(--sec);margin-right:10px;font-variant-numeric:tabular-nums}
+/* dark, premium sidebar with an optional Sora background (image or video) */
+.side{position:sticky;top:0;height:100vh;padding:20px 14px;display:flex;flex-direction:column;gap:4px;overflow:hidden;border-right:0.5px solid rgba(255,255,255,.08);background:linear-gradient(180deg,#0d1017 0%,#12151d 55%,#0a0d13 100%)}
+.side::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.55;background:
+  radial-gradient(1.4px 1.4px at 18% 24%,rgba(255,255,255,.7),transparent),
+  radial-gradient(1px 1px at 68% 16%,rgba(255,255,255,.5),transparent),
+  radial-gradient(1.6px 1.6px at 42% 62%,rgba(255,255,255,.55),transparent),
+  radial-gradient(1px 1px at 84% 54%,rgba(255,255,255,.4),transparent),
+  radial-gradient(1px 1px at 52% 40%,rgba(255,255,255,.35),transparent),
+  radial-gradient(1.2px 1.2px at 28% 84%,rgba(255,255,255,.45),transparent),
+  radial-gradient(1px 1px at 74% 82%,rgba(255,255,255,.3),transparent)}
+.side-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:.5}
+.side-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(9,11,17,.5),rgba(9,11,17,.84))}
+.side>*{position:relative;z-index:2}
+.side .brand{color:#f4f6fb}
+.side .brand .dot{background:#8a94a6}
+.side .brand .dot.on{background:#5fd0a0;box-shadow:0 0 8px rgba(95,208,160,.75)}
+.side .nav button{color:rgba(236,240,250,.62)}
+.side .nav button:hover{background:rgba(255,255,255,.08);color:rgba(236,240,250,.85)}
+.side .nav button.active{background:rgba(255,255,255,.14);color:#fff;font-weight:500}
+.side .nav .n{color:rgba(236,240,250,.38)}
+.side .foot{color:rgba(236,240,250,.4)}
+.side .foot b{color:rgba(236,240,250,.72)}
+.side .foot #logoutLink{color:rgba(236,240,250,.55)}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
+    <video class="side-media" id="sideMedia" autoplay muted loop playsinline poster="/assets/sidebar.jpg"><source src="/assets/sidebar.mp4" type="video/mp4"></video>
+    <div class="side-scrim"></div>
     <div class="brand"><span class="dot" id="liveDot"></span>Terra</div>
     <nav class="nav" id="nav">
-      <button data-v="setup" class="active"><span class="n">1</span>Hardware</button>
+      <button data-v="overview" class="active">Overview</button>
+      <button data-v="setup"><span class="n">1</span>Hardware</button>
       <button data-v="domain"><span class="n">2</span>Domain &amp; sensors</button>
       <button data-v="calib"><span class="n">3</span>Calibration &amp; data</button>
       <button data-v="dash"><span class="n">4</span>Live dashboard</button>
       <button data-v="fleet"><span class="n">5</span>Fleet</button>
       <button data-v="alerts"><span class="n">6</span>Alerts</button>
       <button data-v="settings"><span class="n">7</span>Settings</button>
+      <button data-v="order">Order parts</button>
+      <button data-v="support">Support</button>
     </nav>
     <div class="foot">
       node · <b id="fNode">—</b><br>
@@ -161,7 +189,29 @@ canvas{width:100%;display:block}
 
     <div class="banner" id="offlineBanner" style="display:none">Not connected to a node. Start the engine with <code>terra serve</code> and reload, or enter a node URL below.</div>
 
-    <section class="view active" id="v-setup">
+    <section class="view active" id="v-overview">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div><div class="big" id="ovHello" style="font-size:20px">Welcome back</div><div class="hint" id="ovPlan">—</div></div>
+        <a class="btn sm" href="/pricing" id="ovUpgrade" style="display:none">Upgrade</a>
+      </div>
+      <div class="mcards" id="ovCards" style="margin-top:14px"></div>
+      <div class="grid g2" style="margin-top:12px">
+        <div class="card"><h3>Recent alerts</h3><div class="events" id="ovAlerts" style="margin-top:8px"></div></div>
+        <div class="card"><h3>Quick actions</h3>
+          <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px">
+            <button class="btn sm" onclick="show('dash')">Live dashboard</button>
+            <button class="btn sm" onclick="show('fleet')">Fleet</button>
+            <button class="btn sm" onclick="show('calib')">Calibrate</button>
+            <button class="btn sm" onclick="show('settings')">Enroll a node</button>
+            <button class="btn sm" onclick="show('order')">Order parts</button>
+          </div>
+          <div class="label" style="margin-top:16px">Your plan unlocks</div>
+          <div class="hint" id="ovFeatures" style="color:var(--ink);margin-top:4px">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-setup">
       <div class="card" style="margin-bottom:12px">
         <h3>Node connection <span class="tag" id="connTag">—</span></h3>
         <div class="desc">This console is a client for a running node (<code style="font-family:var(--mono)">terra serve</code>). It shows only what the engine computes.</div>
@@ -294,6 +344,34 @@ canvas{width:100%;display:block}
         </div>
       </div>
     </section>
+
+    <section class="view" id="v-order">
+      <div class="card">
+        <h3>Order a node</h3>
+        <div class="desc">We build, calibrate, and ship it enrollment-ready. This sends a build request, not a charge — we confirm the quote and lead time by email.</div>
+        <div class="row" style="flex-wrap:wrap;gap:10px;margin-top:8px">
+          <select class="field" id="oBoard" style="min-width:230px"><option value="Pi Zero 2 W">Pi Zero 2 W — field, $15</option><option value="Raspberry Pi 4 (4 GB)" selected>Raspberry Pi 4 (4 GB) — pilot, $58</option><option value="Raspberry Pi 5 (4 GB)">Raspberry Pi 5 (4 GB) — fastest, $60</option></select>
+          <select class="field" id="oTier" style="min-width:230px"><option value="Field / mid-grade" selected>Field / mid-grade — from $390</option><option value="Lab-grade">Lab-grade — from $1,050</option><option value="Bring-your-own">Bring-your-own — from $125</option></select>
+          <input class="field" id="oQty" type="number" min="1" value="1" style="width:90px">
+        </div>
+        <input class="field" id="oEmail" placeholder="you@company.com" style="width:100%;margin-top:10px">
+        <input class="field" id="oNotes" placeholder="Site, timeline, integration needs (optional)" style="width:100%;margin-top:10px">
+        <button class="btn primary sm" id="btnOrder" style="margin-top:12px">Request this build</button>
+        <div class="hint" id="oStatus" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section class="view" id="v-support">
+      <div class="card">
+        <h3>Request support</h3>
+        <div class="desc">Tell us what's happening and we'll reply by email. Pro and Fleet get priority response.</div>
+        <input class="field" id="sEmail" placeholder="you@company.com" style="width:100%;margin-top:8px">
+        <input class="field" id="sSubject" placeholder="Subject" style="width:100%;margin-top:10px">
+        <textarea class="field" id="sBody" placeholder="Steps, node id, what you expected, what happened" style="width:100%;margin-top:10px;min-height:120px"></textarea>
+        <button class="btn primary sm" id="btnSupport" style="margin-top:12px">Send request</button>
+        <div class="hint" id="sStatus" style="margin-top:8px"></div>
+      </div>
+    </section>
   </main>
 </div>
 <div id="authOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center">
@@ -399,8 +477,11 @@ const META={setup:["Node hardware","Live from the running node. Every value is c
   dash:["Live dashboard","The running engine: real telemetry, the inferred hidden state, forecast, and events."],
   fleet:["Fleet","Every node reporting to this workspace, with health and active alerts."],
   alerts:["Alerts","Rules that watch the live estimate and notify you by email, Slack, or webhook."],
-  settings:["Settings","Enroll nodes securely and manage API keys for the public API."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings")loadKeys();}
+  settings:["Settings","Enroll nodes securely and manage API keys for the public API."],
+  overview:["Overview","What you have running: nodes, calibration, alerts, and your plan."],
+  order:["Order parts","Configure a node and request a build. We calibrate and ship it enrollment-ready."],
+  support:["Support","Ask for help. Pro and Fleet get priority response."]};
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings")loadKeys();if(v==="order"||v==="support")prefillEmail();}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
@@ -419,7 +500,7 @@ function applyPlan(){
   const cs=$("#calStatus");if(cs&&!cal)cs.innerHTML='Calibration is a Pro feature. <a href="/pricing" style="color:var(--ink)">Upgrade</a>';
   const at=$("#autoTog");if(at){at.style.opacity=ctl?"1":".5";at.dataset.locked=ctl?"":"1";}
 }
-async function initAuth(){try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();if(S.me&&S.me.auth_enforced&&!S.me.authenticated)showAuth();}
+async function initAuth(){try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();if(S.me&&S.me.auth_enforced&&!S.me.authenticated)showAuth();}
 function showAuth(){$("#authOverlay").style.display="flex";}
 $("#authSwap").onclick=e=>{e.preventDefault();S.authMode=S.authMode==="login"?"signup":"login";const su=S.authMode==="signup";$("#authTitle").textContent=su?"Create your workspace":"Sign in to Terra";$("#authSub").textContent=su?"14 days free, every feature, no card.":"Your workspace and nodes.";$("#authSwap").textContent=su?"Have an account? Sign in":"Create an account";$("#authGo").textContent=su?"Create account":"Sign in";};
 $("#authGo").onclick=async()=>{const email=$("#authEmail").value.trim(),pw=$("#authPw").value;$("#authErr").textContent="";
@@ -427,6 +508,32 @@ $("#authGo").onclick=async()=>{const email=$("#authEmail").value.trim(),pw=$("#a
   catch(e){$("#authErr").textContent=S.authMode==="signup"?"Could not create account. Email may be in use, or the password is under 8 characters.":"Invalid email or password.";}};
 $("#acctBtn").onclick=()=>{if(S.me&&S.me.authenticated)location.href="/pricing";else showAuth();};
 $("#logoutLink").onclick=async()=>{try{await post("/api/auth/logout",{});}catch(e){}try{localStorage.removeItem("terra_token");}catch(e){}S.token=null;location.reload();};
+
+function mcard(label,val,sub){return `<div class="mc"><div class="l">${label}</div><div class="v" style="font-size:19px">${val}</div><div class="l" style="margin-top:3px;color:var(--muted)">${sub||""}</div></div>`;}
+async function loadOverview(){
+  try{const o=await api("/api/overview");
+    const plan=o.plan||"local";
+    $("#ovHello").textContent=o.workspace?("Welcome, "+o.workspace):"Welcome back";
+    const trial=(plan==="trial"&&o.trial_days_left!=null)?(" · "+o.trial_days_left+" days left"):"";
+    $("#ovPlan").textContent="Plan: "+plan.charAt(0).toUpperCase()+plan.slice(1)+trial;
+    const gated=S.me&&S.me.auth_enforced&&(plan==="free"||plan==="trial");
+    $("#ovUpgrade").style.display=(S.me&&S.me.auth_enforced&&plan!=="pro"&&plan!=="fleet")?"inline-block":"none";
+    const src=o.running?("running · "+o.source):"no data yet";
+    $("#ovCards").innerHTML=
+      mcard("Nodes",(o.nodes_live||0)+" / "+(o.nodes_total||0),"live / total")+
+      mcard("Engine",o.running?"running":"idle",src)+
+      mcard("Calibration",o.calibrated?"calibrated":"defaults",o.calibrated?(o.calibrated_params||[]).join(", "):"run a fit to tune")+
+      mcard("Alert rules",o.rules||0,(o.recent_alerts||[]).length+" recent events");
+    const w=$("#ovAlerts");w.innerHTML="";
+    if(!(o.recent_alerts||[]).length){w.innerHTML='<div class="hint">No alerts. Quiet loops are good loops.</div>';}
+    else o.recent_alerts.forEach(e=>{const t=new Date((e.created||0)*1000).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});const d=el("div");d.style.cssText="padding:4px 0;font-size:12px";d.innerHTML=`<span class="tn" style="color:var(--sec)">${t}</span> ${e.message}`;w.appendChild(d);});
+    $("#ovFeatures").textContent=(o.features||[]).join(" · ")||"dashboard";
+  }catch(e){}
+}
+function prefillEmail(){const em=(S.me&&S.me.user&&S.me.user.email)||"";if(em&&em!=="local"&&em!=="apikey"){const a=$("#oEmail"),b=$("#sEmail");if(a&&!a.value)a.value=em;if(b&&!b.value)b.value=em;}}
+$("#btnOrder").onclick=async()=>{const body={email:$("#oEmail").value.trim(),board:$("#oBoard").value,tier:$("#oTier").value,qty:parseInt($("#oQty").value||"1"),notes:$("#oNotes").value.trim()};if(!body.email.includes("@")){$("#oStatus").textContent="Enter a valid email.";return;}try{const r=await post("/api/orders",body);$("#oStatus").textContent="Request received (#"+r.order_id+"). We'll email a quote and lead time.";}catch(e){$("#oStatus").textContent="Could not submit — try again.";}};
+$("#btnSupport").onclick=async()=>{const body={email:$("#sEmail").value.trim(),subject:$("#sSubject").value.trim()||"Support request",body:$("#sBody").value.trim()};if(!body.email.includes("@")){$("#sStatus").textContent="Enter a valid email.";return;}try{const r=await post("/api/support",body);$("#sStatus").textContent="Sent (#"+r.ticket_id+"). We'll reply to your email.";$("#sBody").value="";}catch(e){$("#sStatus").textContent="Could not submit — try again.";}};
+const _sm=$("#sideMedia");if(_sm)_sm.addEventListener("error",()=>{_sm.style.display="none";},true);
 
 function fmtAge(s){if(s==null)return "—";if(s<60)return Math.round(s)+"s ago";if(s<3600)return Math.round(s/60)+"m ago";return Math.round(s/3600)+"h ago";}
 async function loadFleet(){try{const d=await api("/api/fleet");const b=$("#fleetBody");b.innerHTML="";const nodes=d.nodes||[];$("#fleetCount").textContent=nodes.length+" node"+(nodes.length===1?"":"s");$("#fleetEmpty").style.display=nodes.length?"none":"block";nodes.forEach(n=>{const tr=el("tr");const dot=n.stale?'<span style="color:var(--sec)">● stale</span>':'<span style="color:var(--ink)">● live</span>';tr.innerHTML=`<td><b>${n.name}</b><div class="hint">${n.node_id}</div></td><td style="color:var(--sec)">${n.domain||"—"}</td><td>${dot}</td><td class="r tn">${fmtAge(n.age_s)}</td><td class="r tn">${n.alerts_1h||0}</td>`;b.appendChild(tr);});}catch(e){}}
@@ -452,6 +559,7 @@ $("#tbClock").textContent=new Date().toLocaleTimeString([],{hour12:false});
 
 renderBoards();renderTiers();renderBOM();
 $("#nodeUrl").value=S.base||"";
+show("overview");
 initAuth();
 connect();
 </script>

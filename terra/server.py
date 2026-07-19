@@ -42,6 +42,7 @@ from . import accounts as acc
 from . import alerts as alertmod
 from . import registry as reg
 from . import billing
+from . import support
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 DATA_DIR = os.path.join(HOME, "data")
@@ -223,12 +224,17 @@ class Platform:
                 return
             except Exception:
                 pass
-        # fall back to the repo sample so the engine runs on real rows
+        # No simulation or demo data: the platform starts empty and only runs on
+        # real ingested logs or live node reports. Set TERRA_DEMO=1 to opt into the
+        # bundled sample for a local walkthrough.
+        if not os.environ.get("TERRA_DEMO"):
+            self.source_name = "none"
+            return
         sample = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                               "data", "aquaculture_sample.csv")
         if os.path.exists(sample) and self.cfg["domain"] == "aquaculture":
             try:
-                self._load_text(open(sample).read(), "aquaculture_sample.csv")
+                self._load_text(open(sample).read(), "sample (TERRA_DEMO)")
             except Exception:
                 pass
 
@@ -517,6 +523,34 @@ def make_handler(pf: Platform):
                 for nd in nodes:
                     nd["alerts_1h"] = alertmod.active_count(ws, nd["node_id"])
                 return self._send(200, {"nodes": nodes})
+            if p == "/api/overview":
+                usr = self._user()
+                ws = usr.get("workspace_id") if usr else LOCAL_WS
+                nodes = reg.list_nodes(ws)
+                live = sum(1 for n in nodes if not n["stale"])
+                events = alertmod.list_events(ws, 5)
+                params = pf.cfg.get("params") or {}
+                st = pf.status()
+                return self._send(200, {
+                    "plan": (usr or {}).get("plan"),
+                    "trial_days_left": acc.trial_days_left(usr) if usr else 0,
+                    "workspace": (usr or {}).get("workspace"),
+                    "domain": st["domain"], "source": st["source"],
+                    "running": st["running"], "cycles": st["cycles"],
+                    "nodes_total": len(nodes), "nodes_live": live,
+                    "rules": len(alertmod.list_rules(ws)),
+                    "recent_alerts": events,
+                    "calibrated": bool(params), "calibrated_params": list(params.keys()),
+                    "features": sorted(acc.PLAN_FEATURES.get((usr or {}).get("plan", "free"), [])),
+                })
+            if p == "/api/orders":
+                if self._user() is None:
+                    return self._send(401, {"error": "sign in"})
+                return self._send(200, {"orders": support.list_orders(self._ws())})
+            if p == "/api/tickets":
+                if self._user() is None:
+                    return self._send(401, {"error": "sign in"})
+                return self._send(200, {"tickets": support.list_tickets(self._ws())})
             if p == "/api/alerts/rules":
                 if self._gate("alerts") is None:
                     return
@@ -551,11 +585,22 @@ def make_handler(pf: Platform):
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 return self.wfile.write(pf.export_csv().encode())
-            if p in ("/pricing", "/pricing.html"):
-                f = os.path.join(WEB_DIR, "pricing.html")
-                if os.path.exists(f):
-                    return self._send(200, open(f, "rb").read(), "text/html; charset=utf-8")
-                return self._send(404, {"error": "pricing not bundled"})
+            if p.startswith("/assets/"):
+                name = os.path.basename(p)
+                f = os.path.join(WEB_DIR, "assets", name)
+                if os.path.isfile(f):
+                    ext = name.rsplit(".", 1)[-1].lower()
+                    ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                          "webp": "image/webp", "mp4": "video/mp4", "webm": "video/webm",
+                          "svg": "image/svg+xml"}.get(ext, "application/octet-stream")
+                    return self._send(200, open(f, "rb").read(), ct)
+                return self._send(404, {"error": "asset not found"})
+            for _page in ("pricing", "order", "support"):
+                if p in ("/" + _page, "/" + _page + ".html"):
+                    f = os.path.join(WEB_DIR, _page + ".html")
+                    if os.path.exists(f):
+                        return self._send(200, open(f, "rb").read(), "text/html; charset=utf-8")
+                    return self._send(404, {"error": _page + " not bundled"})
             if p in ("/", "/index.html"):
                 f = os.path.join(WEB_DIR, "index.html")
                 if os.path.exists(f):
@@ -624,6 +669,28 @@ def make_handler(pf: Platform):
                 except Exception:
                     pass
                 return self._send(200, {"received": True})
+            if p == "/api/orders":
+                u = self._user()
+                ws = u.get("workspace_id") if u else None
+                try:
+                    oid = support.create_order(
+                        data.get("email") or (u or {}).get("email"),
+                        data.get("board", ""), data.get("tier", ""),
+                        int(data.get("qty", 1)), data.get("notes", ""), workspace_id=ws)
+                except (ValueError, TypeError) as e:
+                    return self._send(400, {"error": str(e)})
+                return self._send(200, {"ok": True, "order_id": oid})
+            if p == "/api/support":
+                u = self._user()
+                ws = u.get("workspace_id") if u else None
+                try:
+                    tid = support.create_ticket(
+                        data.get("email") or (u or {}).get("email"),
+                        data.get("subject", "Support request"), data.get("body", ""),
+                        workspace_id=ws)
+                except (ValueError, TypeError) as e:
+                    return self._send(400, {"error": str(e)})
+                return self._send(200, {"ok": True, "ticket_id": tid})
             if p == "/api/config":
                 pf.set_config(data)
                 return self._send(200, pf.config())
