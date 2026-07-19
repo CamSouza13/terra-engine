@@ -33,6 +33,7 @@ Repository = "https://github.com/CamSouza13/terra-engine"
 [project.optional-dependencies]
 plots = ["matplotlib>=3.6"]
 calibrate = ["jax>=0.4.20", "numpyro>=0.13"]
+reports = ["reportlab>=4.0"]
 dev = ["ruff", "mypy", "coverage", "build"]
 
 [project.scripts]

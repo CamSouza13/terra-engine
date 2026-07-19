@@ -43,6 +43,8 @@ from . import alerts as alertmod
 from . import registry as reg
 from . import billing
 from . import support
+from . import audit
+from . import reports
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 DATA_DIR = os.path.join(HOME, "data")
@@ -543,6 +545,35 @@ def make_handler(pf: Platform):
                     "calibrated": bool(params), "calibrated_params": list(params.keys()),
                     "features": sorted(acc.PLAN_FEATURES.get((usr or {}).get("plan", "free"), [])),
                 })
+            if p == "/api/audit":
+                if self._user() is None:
+                    return self._send(401, {"error": "sign in"})
+                n = int(q.get("n", ["100"])[0])
+                return self._send(200, {"events": audit.list_events(self._ws(), n)})
+            if p == "/api/report":
+                if self._gate("history") is None:
+                    return
+                if not reports.HAS_REPORTLAB:
+                    return self._send(200, {"error": "PDF reports need the optional extra: "
+                                                     "pip install terra-engine[reports]"})
+                ws = self._ws()
+                ctx = {
+                    "workspace": (self._user() or {}).get("workspace"),
+                    "domain": pf.cfg["domain"], "source": pf.source_name,
+                    "cycles": pf.cycles, "calibrated": pf.cfg.get("params") or {},
+                    "nodes": reg.list_nodes(ws), "alerts": alertmod.list_events(ws, 20),
+                    "history": pf.history(2000),
+                    "channels": [k for k in pf.spec.channels],
+                }
+                pdf = reports.build_pdf(ctx)
+                audit.log(ws, (self._user() or {}).get("email", "local"), "report.download",
+                          f"{len(ctx['history'])} points")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Disposition", "attachment; filename=terra-report.pdf")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                return self.wfile.write(pdf)
             if p == "/api/orders":
                 if self._user() is None:
                     return self._send(401, {"error": "sign in"})
@@ -592,10 +623,15 @@ def make_handler(pf: Platform):
                     ext = name.rsplit(".", 1)[-1].lower()
                     ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
                           "webp": "image/webp", "mp4": "video/mp4", "webm": "video/webm",
-                          "svg": "image/svg+xml"}.get(ext, "application/octet-stream")
+                          "svg": "image/svg+xml", "ico": "image/x-icon"}.get(ext, "application/octet-stream")
                     return self._send(200, open(f, "rb").read(), ct)
                 return self._send(404, {"error": "asset not found"})
-            for _page in ("pricing", "order", "support"):
+            if p == "/favicon.ico":
+                f = os.path.join(WEB_DIR, "assets", "favicon.ico")
+                if os.path.isfile(f):
+                    return self._send(200, open(f, "rb").read(), "image/x-icon")
+                return self._send(404, {"error": "no favicon"})
+            for _page in ("pricing", "order", "support", "docs"):
                 if p in ("/" + _page, "/" + _page + ".html"):
                     f = os.path.join(WEB_DIR, _page + ".html")
                     if os.path.exists(f):
@@ -625,6 +661,7 @@ def make_handler(pf: Platform):
                                            data.get("workspace"))
                 except ValueError as e:
                     return self._send(400, {"error": str(e)})
+                audit.log(r["workspace_id"], data.get("email"), "account.create", "trial started")
                 return self._send(200, {"token": r["token"],
                                         "user": acc.session_user(r["token"])})
             if p == "/api/auth/login":
@@ -636,7 +673,9 @@ def make_handler(pf: Platform):
                     _login_fail(ident)
                     return self._send(401, {"error": "invalid email or password"})
                 _LOGIN_FAILS.pop(ident, None)
-                return self._send(200, {"token": tok, "user": acc.session_user(tok)})
+                u2 = acc.session_user(tok)
+                audit.log(u2.get("workspace_id") if u2 else None, data.get("email"), "auth.login", "")
+                return self._send(200, {"token": tok, "user": u2})
             if p == "/api/auth/logout":
                 t = self._token()
                 if t:
@@ -659,6 +698,7 @@ def make_handler(pf: Platform):
                     return self._send(200, {"url": sess.get("url"), "plan": plan})
                 # Stripe not configured: documented stub sets the plan directly
                 acc.set_plan(u["workspace_id"], plan)
+                audit.log(u["workspace_id"], u.get("email"), "billing.plan", plan + " (stub)")
                 return self._send(200, {"ok": True, "plan": plan, "stub": True})
             if p == "/api/billing/webhook":
                 sig = self.headers.get("Stripe-Signature", "")
@@ -679,6 +719,8 @@ def make_handler(pf: Platform):
                         int(data.get("qty", 1)), data.get("notes", ""), workspace_id=ws)
                 except (ValueError, TypeError) as e:
                     return self._send(400, {"error": str(e)})
+                audit.log(ws, (u or {}).get("email") or data.get("email"), "order.create",
+                          f"{data.get('qty', 1)}x {data.get('board', '')}")
                 return self._send(200, {"ok": True, "order_id": oid})
             if p == "/api/support":
                 u = self._user()
@@ -690,16 +732,21 @@ def make_handler(pf: Platform):
                         workspace_id=ws)
                 except (ValueError, TypeError) as e:
                     return self._send(400, {"error": str(e)})
+                audit.log(ws, (u or {}).get("email") or data.get("email"), "support.ticket",
+                          data.get("subject", ""))
                 return self._send(200, {"ok": True, "ticket_id": tid})
             if p == "/api/config":
                 pf.set_config(data)
                 return self._send(200, pf.config())
             if p == "/api/control":
-                if self._gate("control") is None:
+                u = self._gate("control")
+                if u is None:
                     return
                 pf.autonomy = bool(data.get("autonomy"))
                 pf.cfg["autonomy"] = pf.autonomy
                 save_config(pf.cfg)
+                audit.log(u.get("workspace_id"), u.get("email"), "control.autonomy",
+                          "on" if pf.autonomy else "off")
                 return self._send(200, pf.status())
             if p == "/api/offline":
                 if self._gate("control") is None:
@@ -707,8 +754,10 @@ def make_handler(pf: Platform):
                 pf.offline = bool(data.get("offline"))
                 return self._send(200, pf.status())
             if p == "/api/calibrate":
-                if self._gate("calibrate") is None:
+                u = self._gate("calibrate")
+                if u is None:
                     return
+                audit.log(u.get("workspace_id"), u.get("email"), "engine.calibrate", pf.cfg["domain"])
                 return self._send(200, pf.calibrate())
             if p == "/api/alerts/rules":
                 if self._gate("alerts") is None:
@@ -722,6 +771,8 @@ def make_handler(pf: Platform):
                         cooldown=int(data.get("cooldown", alertmod.DEFAULT_COOLDOWN)))
                 except (ValueError, TypeError) as e:
                     return self._send(400, {"error": str(e)})
+                audit.log(self._ws(), (self._user() or {}).get("email"), "alert.rule.create",
+                          data.get("name", ""))
                 return self._send(200, {"id": rid, "rules": alertmod.list_rules(self._ws())})
             if p == "/api/alerts/rules/delete":
                 if self._gate("alerts") is None:
@@ -738,6 +789,8 @@ def make_handler(pf: Platform):
                 if self._gate("api") is None:
                     return
                 k = reg.create_api_key(self._ws(), data.get("name", "default"))
+                audit.log(self._ws(), (self._user() or {}).get("email"), "apikey.create",
+                          k.get("prefix", ""))
                 return self._send(200, k)   # full key returned once
             if p == "/api/keys/revoke":
                 if self._gate("api") is None:
@@ -749,12 +802,15 @@ def make_handler(pf: Platform):
                 if not u:
                     return self._send(401, {"error": "sign in first"})
                 tok = reg.create_enroll_token(u["workspace_id"])
+                audit.log(u["workspace_id"], u.get("email"), "node.enroll_token", "")
                 return self._send(200, {"enroll_token": tok, "expires_in": reg.ENROLL_TOKEN_TTL})
             if p == "/api/v1/enroll":
                 r = reg.enroll_node(data.get("enroll_token"), data.get("node_id"),
                                     data.get("name"), data.get("domain"))
                 if not r:
                     return self._send(401, {"error": "invalid or expired enrollment token"})
+                audit.log(r["workspace_id"], "node:" + r["node_id"], "node.enroll",
+                          data.get("name", ""))
                 return self._send(200, r)   # node_key returned once
             if p == "/api/v1/ingest":
                 nid = data.get("node_id") or self.headers.get("X-Node-Id")

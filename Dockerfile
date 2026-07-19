@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 COPY . /app
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e ".[reports]"
 
 # TERRA_HOME points at the mounted volume so accounts, config, history, and the
 # SQLite database survive restarts and deploys. TERRA_AUTH turns on the hosted

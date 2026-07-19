@@ -210,7 +210,9 @@ canvas{width:100%;display:block}
             <button class="btn sm" onclick="show('calib')">Calibrate</button>
             <button class="btn sm" onclick="show('settings')">Enroll a node</button>
             <button class="btn sm" onclick="show('order')">Order parts</button>
+            <button class="btn sm" id="btnReport">Download report (PDF)</button>
           </div>
+          <div class="hint" id="ovReportStatus" style="margin-top:6px"></div>
           <div class="label" style="margin-top:16px">Your plan unlocks</div>
           <div class="hint" id="ovFeatures" style="color:var(--ink);margin-top:4px">—</div>
         </div>
@@ -348,6 +350,11 @@ canvas{width:100%;display:block}
             <div id="keysList" style="margin-top:10px"></div>
           </div>
         </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>Recent activity</h3>
+        <div class="desc">Append-only audit log of actions in this workspace.</div>
+        <div id="auditList" style="margin-top:6px"></div>
       </div>
     </section>
 
@@ -487,7 +494,7 @@ const META={setup:["Node hardware","Live from the running node. Every value is c
   overview:["Overview","What you have running: nodes, calibration, alerts, and your plan."],
   order:["Order parts","Configure a node and request a build. We calibrate and ship it enrollment-ready."],
   support:["Support","Ask for help. Pro and Fleet get priority response."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings")loadKeys();if(v==="order"||v==="support")prefillEmail();}
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();}if(v==="order"||v==="support")prefillEmail();}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
@@ -536,6 +543,8 @@ async function loadOverview(){
     $("#ovFeatures").textContent=(o.features||[]).join(" · ")||"dashboard";
   }catch(e){}
 }
+async function loadAudit(){try{const d=await api("/api/audit?n=40");const w=$("#auditList");w.innerHTML="";const ev=d.events||[];if(!ev.length){w.innerHTML='<div class="hint">No activity yet.</div>';return;}ev.forEach(e=>{const t=new Date((e.created||0)*1000).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});const d2=el("div");d2.style.cssText="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--line);font-size:12px";d2.innerHTML=`<span><b>${e.action}</b> <span style="color:var(--sec)">${e.detail||""}</span></span><span class="tn" style="color:var(--muted)">${t} · ${e.actor||""}</span>`;w.appendChild(d2);});}catch(e){}}
+$("#btnReport").onclick=async()=>{$("#ovReportStatus").textContent="Generating…";try{const h={};if(S.token)h.Authorization="Bearer "+S.token;const r=await fetch(S.base+"/api/report",{headers:h});const ct=r.headers.get("Content-Type")||"";if(ct.includes("application/pdf")){const b=await r.blob();const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="terra-report.pdf";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);$("#ovReportStatus").textContent="Downloaded.";}else{const d=await r.json();$("#ovReportStatus").innerHTML=(d.error||"Report unavailable")+(r.status===402?' · <a href="/pricing" style="color:var(--ink)">Upgrade</a>':"");}}catch(e){$("#ovReportStatus").textContent="Could not generate report.";}};
 function prefillEmail(){const em=(S.me&&S.me.user&&S.me.user.email)||"";if(em&&em!=="local"&&em!=="apikey"){const a=$("#oEmail"),b=$("#sEmail");if(a&&!a.value)a.value=em;if(b&&!b.value)b.value=em;}}
 $("#btnOrder").onclick=async()=>{const body={email:$("#oEmail").value.trim(),board:$("#oBoard").value,tier:$("#oTier").value,qty:parseInt($("#oQty").value||"1"),notes:$("#oNotes").value.trim()};if(!body.email.includes("@")){$("#oStatus").textContent="Enter a valid email.";return;}try{const r=await post("/api/orders",body);$("#oStatus").textContent="Request received (#"+r.order_id+"). We'll email a quote and lead time.";}catch(e){$("#oStatus").textContent="Could not submit — try again.";}};
 $("#btnSupport").onclick=async()=>{const body={email:$("#sEmail").value.trim(),subject:$("#sSubject").value.trim()||"Support request",body:$("#sBody").value.trim()};if(!body.email.includes("@")){$("#sStatus").textContent="Enter a valid email.";return;}try{const r=await post("/api/support",body);$("#sStatus").textContent="Sent (#"+r.ticket_id+"). We'll reply to your email.";$("#sBody").value="";}catch(e){$("#sStatus").textContent="Could not submit — try again.";}};

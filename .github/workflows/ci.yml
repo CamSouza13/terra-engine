@@ -56,6 +56,9 @@ jobs:
       - name: Run server auth + API tests
         run: python tests/test_server_auth.py
 
+      - name: Run report + audit tests
+        run: python tests/test_reports_audit.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 
