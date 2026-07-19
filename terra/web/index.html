@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Terra Console</title>
 <meta name="theme-color" content="#f5f5f4"/>
+<link rel="icon" href="/assets/icon.png"/>
+<link rel="apple-touch-icon" href="/assets/icon.png"/>
+<meta property="og:title" content="Terra — closed-loop control for living systems"/>
+<meta property="og:description" content="Bayesian biogeochemical control on the edge. From a fish farm to a habitat."/>
+<meta property="og:image" content="/assets/og.jpg"/>
+<meta name="twitter:card" content="summary_large_image"/>
 <style>
 :root{
   --bg:#f5f5f4;--panel:#ffffff;--fill:#efefec;--fill2:#e8e8e4;--line:rgba(0,0,0,.08);--line2:rgba(0,0,0,.16);
@@ -374,7 +380,7 @@ canvas{width:100%;display:block}
     </section>
   </main>
 </div>
-<div id="authOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center">
+<div id="authOverlay" style="display:none;position:fixed;inset:0;background:linear-gradient(rgba(6,8,14,.66),rgba(6,8,14,.82)),#0a0d13 center/cover;background-image:linear-gradient(rgba(6,8,14,.66),rgba(6,8,14,.82)),url('/assets/auth-bg.jpg');background-size:cover;background-position:center;z-index:100;align-items:center;justify-content:center">
   <div style="background:var(--panel);border:0.5px solid var(--line);border-radius:16px;padding:24px;width:330px;max-width:90vw">
     <div style="font-size:17px;font-weight:500" id="authTitle">Sign in to Terra</div>
     <div style="font-size:13px;color:var(--sec);margin-top:4px" id="authSub">Your workspace and nodes.</div>
