@@ -98,9 +98,13 @@ document.querySelectorAll(".btn").forEach(b=>b.onclick=async()=>{
   const plan=b.dataset.plan;
   if(plan==="fleet"){location.href="mailto:cameron@terralaboratories.com?subject=Terra%20Fleet";return;}
   if(plan==="free"||!tok){location.href="/";return;}
-  b.textContent="Upgrading…";
-  try{await fetch(base+"/api/billing/upgrade",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({plan})});location.href="/";}
-  catch(e){b.textContent="Try again";}
+  b.textContent="Redirecting…";
+  try{
+    const r=await fetch(base+"/api/billing/upgrade",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},body:JSON.stringify({plan})});
+    const d=await r.json();
+    if(d.url){location.href=d.url;return;}   // real Stripe Checkout
+    location.href="/";                        // stub (Stripe not configured)
+  }catch(e){b.textContent="Try again";}
 });
 </script>
 </body>

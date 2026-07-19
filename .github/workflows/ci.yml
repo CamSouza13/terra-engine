@@ -50,6 +50,12 @@ jobs:
       - name: Run robustness tests
         run: python tests/test_robust.py
 
+      - name: Run platform tests (accounts, alerts, registry, billing)
+        run: python tests/test_platform.py
+
+      - name: Run server auth + API tests
+        run: python tests/test_server_auth.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

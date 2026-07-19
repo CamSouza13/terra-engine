@@ -112,7 +112,7 @@ class NodeRunner:
         self._save_buffer()
 
     # ---- the service loop ----
-    def run(self, on_event=None, banner: bool = False) -> dict:
+    def run(self, on_event=None, banner: bool = False, on_cycle=None) -> dict:
         if banner:
             print(BANNER)
             print(f"  domain: {self.spec.name}  |  resuming at cycle {self.cycles}\n")
@@ -123,6 +123,11 @@ class NodeRunner:
             est = self.engine.step(t, dt, meas, u, u_forecast=uf)
             self.cycles += 1
             run_cycles += 1
+            if on_cycle is not None:
+                try:
+                    on_cycle(est, t)
+                except Exception:
+                    pass
             # controller: recommend, and enact if authorized + an actuator is wired
             if self.controller is not None:
                 rec = self.controller.recommend(est, u)

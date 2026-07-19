@@ -87,12 +87,34 @@ def cmd_node(args) -> int:
         return 0 if ok else 1
     mod = _get_domain(args.domain)
     spec, sim = mod.simulate()
+
+    # optional: enroll into a hosted workspace, then report heartbeats to it
+    reporter = None
+    if args.enroll or args.server:
+        from terra.node import report as rep
+        creds: dict
+        if args.enroll:
+            if not args.server:
+                raise SystemExit("--enroll requires --server <platform url>")
+            creds = rep.enroll(args.server, args.enroll, node_id=args.node_id,
+                               name=args.name, domain=args.domain)
+            print(f"enrolled as {creds['node_id']} -> {creds['server']}")
+        else:
+            loaded = rep.load_creds(args.server)
+            if not loaded:
+                raise SystemExit("no saved node credentials; run with --enroll <token> first")
+            creds = loaded
+        reporter = rep.ServerReporter(spec, creds, interval_s=args.interval)
+        print(f"reporting to {creds['server']} every {args.interval:g}s")
+
     state = os.environ.get("TERRA_STATE", "terra_node_state.json")
     runner = NodeRunner(
         spec, SimulatedDriver(spec, sim),
         NodeConfig(state_path=state, max_cycles=args.cycles))
     runner.run(on_event=lambda ev: print(f"  {ev[0]:6.1f} h  {ev[1]:5}  {ev[2]}"),
-               banner=True)
+               banner=True, on_cycle=(reporter.on_cycle if reporter else None))
+    if reporter:
+        print(f"reported {reporter.sent} heartbeats ({reporter.failures} failed)")
     return 0
 
 
@@ -125,6 +147,14 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--domain", default="aquaculture")
     n.add_argument("--cycles", type=int, default=None)
     n.add_argument("--selftest", action="store_true", help="run bring-up self-test")
+    n.add_argument("--enroll", metavar="TOKEN", default=None,
+                   help="redeem a one-time enrollment token from the platform")
+    n.add_argument("--server", default=None,
+                   help="platform URL to report heartbeats to")
+    n.add_argument("--node-id", default=None, help="stable id for this node")
+    n.add_argument("--name", default=None, help="display name for this node")
+    n.add_argument("--interval", type=float, default=10.0,
+                   help="seconds between heartbeats (default 10)")
     n.set_defaults(func=cmd_node)
 
     s = sub.add_parser("serve", help="serve the live engine API + web console")

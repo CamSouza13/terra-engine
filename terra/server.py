@@ -41,6 +41,7 @@ from .control import Controller, policy_for
 from . import accounts as acc
 from . import alerts as alertmod
 from . import registry as reg
+from . import billing
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 DATA_DIR = os.path.join(HOME, "data")
@@ -473,6 +474,11 @@ def make_handler(pf: Platform):
             u = self._user()
             return u.get("workspace_id") if u else LOCAL_WS
 
+        def _origin(self):
+            proto = self.headers.get("X-Forwarded-Proto", "http")
+            host = self.headers.get("Host", "localhost")
+            return f"{proto}://{host}"
+
         def _gate(self, feature):
             u = self._user()
             if u is None:
@@ -595,9 +601,29 @@ def make_handler(pf: Platform):
                 u = self._user()
                 if not u or not u.get("workspace_id"):
                     return self._send(401, {"error": "sign in first"})
-                # real billing opens a Stripe Checkout session; this stub sets the plan
-                acc.set_plan(u["workspace_id"], data.get("plan", "pro"))
-                return self._send(200, {"ok": True, "plan": data.get("plan", "pro"), "stub": True})
+                plan = data.get("plan", "pro")
+                if billing.enabled():
+                    origin = self._origin()
+                    try:
+                        sess = billing.create_checkout_session(
+                            u["workspace_id"], plan,
+                            success_url=origin + "/?upgraded=1",
+                            cancel_url=origin + "/pricing")
+                    except Exception as e:
+                        return self._send(400, {"error": f"billing error: {e}"})
+                    return self._send(200, {"url": sess.get("url"), "plan": plan})
+                # Stripe not configured: documented stub sets the plan directly
+                acc.set_plan(u["workspace_id"], plan)
+                return self._send(200, {"ok": True, "plan": plan, "stub": True})
+            if p == "/api/billing/webhook":
+                sig = self.headers.get("Stripe-Signature", "")
+                if not billing.verify_signature(raw, sig):
+                    return self._send(400, {"error": "bad signature"})
+                try:
+                    billing.handle_event(json.loads(raw or b"{}"))
+                except Exception:
+                    pass
+                return self._send(200, {"received": True})
             if p == "/api/config":
                 pf.set_config(data)
                 return self._send(200, pf.config())
