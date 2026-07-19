@@ -712,7 +712,13 @@ def make_handler(pf: Platform):
                 if not billing.verify_signature(raw, sig):
                     return self._send(400, {"error": "bad signature"})
                 try:
-                    billing.handle_event(json.loads(raw or b"{}"))
+                    ev = json.loads(raw or b"{}")
+                    plan = billing.handle_event(ev)
+                    if plan:
+                        obj = (ev.get("data") or {}).get("object") or {}
+                        ws = (obj.get("metadata") or {}).get("workspace_id") or obj.get("client_reference_id")
+                        if ws:
+                            audit.log(int(ws), "stripe", "billing.plan", plan)
                 except Exception:
                     pass
                 return self._send(200, {"received": True})
