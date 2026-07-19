@@ -146,6 +146,28 @@ canvas{width:100%;display:block}
 .side .foot{color:rgba(236,240,250,.4)}
 .side .foot b{color:rgba(236,240,250,.72)}
 .side .foot #logoutLink{color:rgba(236,240,250,.55)}
+/* mobile: collapse the sidebar into a top bar with a horizontal-scroll nav.
+   Placed after the dark-sidebar rules so it wins the cascade on small screens. */
+@media(max-width:820px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;flex-direction:column;gap:8px;padding:12px}
+  .side-media{display:none}
+  .side .brand{padding:2px 6px 4px}
+  .nav{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:4px;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .nav button{flex:0 0 auto;white-space:nowrap}
+  .nav .n{display:none}
+  .side .foot{margin-top:6px}
+  main{padding:16px 14px;max-width:100%}
+  .topbar{margin:-16px 0 14px}
+  .head h1{font-size:22px}
+  .g2{grid-template-columns:1fr}
+}
+@media(max-width:520px){
+  #tbClock,#tbT{display:none}
+  .tbR{gap:7px}
+  .card table{display:block;overflow-x:auto;white-space:nowrap}
+  .mcards{grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 <body>
