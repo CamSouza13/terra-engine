@@ -62,6 +62,9 @@ jobs:
       - name: Run customer email tests
         run: python tests/test_mailer.py
 
+      - name: Run roles + team tests
+        run: python tests/test_roles.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

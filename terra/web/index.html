@@ -352,6 +352,18 @@ canvas{width:100%;display:block}
           </div>
         </div>
       </div>
+      <div class="card" style="margin-top:12px" id="teamCard">
+        <h3>Team</h3>
+        <div class="desc">Invite people to this workspace and manage roles. Owner &gt; Admin &gt; Member &gt; Viewer.</div>
+        <div class="row" id="inviteRow" style="gap:8px;margin-top:10px;display:none">
+          <input class="field" id="invEmail" placeholder="teammate@company.com" style="width:220px">
+          <select class="field" id="invRole"><option value="admin">Admin</option><option value="member" selected>Member</option><option value="viewer">Viewer</option></select>
+          <button class="btn primary sm" id="btnInvite">Send invite</button>
+        </div>
+        <div class="hint" id="invStatus" style="margin-top:6px"></div>
+        <div id="memberList" style="margin-top:10px"></div>
+        <div id="inviteList" style="margin-top:6px"></div>
+      </div>
       <div class="card" style="margin-top:12px">
         <h3>Recent activity</h3>
         <div class="desc">Append-only audit log of actions in this workspace.</div>
@@ -409,7 +421,8 @@ const TIERS={"Field / mid-grade":{note:"analog probes, ADC, RP2040",items:[["Boa
 "Bring-your-own":{note:"rides on existing probes",items:[["Board and carrier","Pi, isolation","$60"],["Integration","to existing probes","labor"]],total:"$125"}};
 const $=s=>document.querySelector(s),el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
 const S={base:location.protocol.startsWith("http")?location.origin:"",connected:false,cfg:null,timer:null,paused:false,hwBoard:1,hwTier:"Field / mid-grade",
-  token:(()=>{try{return localStorage.getItem("terra_token")}catch(e){return null}})(),me:null,authMode:"login"};
+  token:(()=>{try{return localStorage.getItem("terra_token")}catch(e){return null}})(),me:null,authMode:"login",
+  invite:(()=>{try{return new URLSearchParams(location.search).get("invite")}catch(e){return null}})()};
 
 async function api(path,opts){opts=opts||{};const h=Object.assign({},opts.headers||{});if(S.token)h.Authorization="Bearer "+S.token;const r=await fetch(S.base+path,Object.assign({cache:"no-store"},opts,{headers:h}));if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e;}return r.json();}
 async function post(path,body){return api(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});}
@@ -495,7 +508,7 @@ const META={setup:["Node hardware","Live from the running node. Every value is c
   overview:["Overview","What you have running: nodes, calibration, alerts, and your plan."],
   order:["Order parts","Configure a node and request a build. We calibrate and ship it enrollment-ready."],
   support:["Support","Ask for help. Pro and Fleet get priority response."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();}if(v==="order"||v==="support")prefillEmail();}
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();loadTeam();}if(v==="order"||v==="support")prefillEmail();}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
@@ -514,12 +527,16 @@ function applyPlan(){
   const cs=$("#calStatus");if(cs&&!cal)cs.innerHTML='Calibration is a Pro feature. <a href="/pricing" style="color:var(--ink)">Upgrade</a>';
   const at=$("#autoTog");if(at){at.style.opacity=ctl?"1":".5";at.dataset.locked=ctl?"":"1";}
 }
-async function initAuth(){try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();if(S.me&&S.me.auth_enforced&&!S.me.authenticated)showAuth();}
+async function initAuth(){try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();
+  const needAuth=S.me&&S.me.auth_enforced&&!S.me.authenticated;
+  if(S.invite&&needAuth){S.authMode="signup";$("#authTitle").textContent="Accept your invite";$("#authSub").textContent="Set a password to join the workspace.";$("#authGo").textContent="Join workspace";$("#authSwap").style.display="none";showAuth();}
+  else if(needAuth)showAuth();}
 function showAuth(){$("#authOverlay").style.display="flex";}
 $("#authSwap").onclick=e=>{e.preventDefault();S.authMode=S.authMode==="login"?"signup":"login";const su=S.authMode==="signup";$("#authTitle").textContent=su?"Create your workspace":"Sign in to Terra";$("#authSub").textContent=su?"14 days free, every feature, no card.":"Your workspace and nodes.";$("#authSwap").textContent=su?"Have an account? Sign in":"Create an account";$("#authGo").textContent=su?"Create account":"Sign in";};
 $("#authGo").onclick=async()=>{const email=$("#authEmail").value.trim(),pw=$("#authPw").value;$("#authErr").textContent="";
-  try{const r=await post("/api/auth/"+(S.authMode==="signup"?"signup":"login"),{email,password:pw});S.token=r.token;try{localStorage.setItem("terra_token",S.token);}catch(e){}location.reload();}
-  catch(e){$("#authErr").textContent=S.authMode==="signup"?"Could not create account. Email may be in use, or the password is under 8 characters.":"Invalid email or password.";}};
+  const body={email,password:pw};if(S.authMode==="signup"&&S.invite)body.invite_token=S.invite;
+  try{const r=await post("/api/auth/"+(S.authMode==="signup"?"signup":"login"),body);S.token=r.token;try{localStorage.setItem("terra_token",S.token);}catch(e){}location.href=location.pathname;}
+  catch(e){$("#authErr").textContent=S.authMode==="signup"?(S.invite?"Could not accept invite. It may be expired, or the email is already in use.":"Could not create account. Email may be in use, or the password is under 8 characters."):"Invalid email or password.";}};
 $("#acctBtn").onclick=()=>{if(S.me&&S.me.authenticated)location.href="/pricing";else showAuth();};
 $("#logoutLink").onclick=async()=>{try{await post("/api/auth/logout",{});}catch(e){}try{localStorage.removeItem("terra_token");}catch(e){}S.token=null;location.reload();};
 
@@ -563,6 +580,20 @@ function renderOnboard(o){
       ${s.done?'':`<button class="btn sm" onclick="show('${s.go}')">Do it</button>`}
     </div>`).join("");
 }
+async function loadTeam(){try{const d=await api("/api/team");const cm=d.can_manage;
+  $("#inviteRow").style.display=cm?"flex":"none";
+  const ml=$("#memberList");ml.innerHTML="";
+  (d.members||[]).forEach(m=>{const row=el("div");row.style.cssText="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--line)";
+    const me=m.id===d.me.user_id;let right;
+    if(cm&&m.role!=="owner"){right=`<select class="field" data-uid="${m.id}" style="padding:5px 8px"><option value="admin"${m.role==="admin"?" selected":""}>Admin</option><option value="member"${m.role==="member"?" selected":""}>Member</option><option value="viewer"${m.role==="viewer"?" selected":""}>Viewer</option></select> <button class="btn sm" data-rm="${m.id}">Remove</button>`;}
+    else{right=`<span class="hint" style="text-transform:capitalize">${m.role}</span>`;}
+    row.innerHTML=`<span><b>${m.email}</b>${me?' <span class="hint">(you)</span>':''}</span><span>${right}</span>`;ml.appendChild(row);});
+  ml.querySelectorAll("select[data-uid]").forEach(s=>s.onchange=async()=>{try{await post("/api/team/role",{user_id:parseInt(s.dataset.uid),role:s.value});}catch(e){}loadTeam();});
+  ml.querySelectorAll("button[data-rm]").forEach(b=>b.onclick=async()=>{if(confirm("Remove this member from the workspace?")){try{await post("/api/team/remove",{user_id:parseInt(b.dataset.rm)});}catch(e){}loadTeam();}});
+  const il=$("#inviteList");il.innerHTML="";
+  (d.invites||[]).forEach(i=>{const r=el("div");r.style.cssText="padding:5px 0;font-size:12px;color:var(--sec)";r.innerHTML=`Pending · ${i.email} <span class="hint">(${i.role})</span>`;il.appendChild(r);});
+}catch(e){}}
+$("#btnInvite").onclick=async()=>{const email=$("#invEmail").value.trim();if(!email.includes("@")){$("#invStatus").textContent="Enter a valid email.";return;}try{const r=await post("/api/team/invite",{email,role:$("#invRole").value});$("#invStatus").innerHTML='Invite sent. Share this link if needed: <code style="font-size:11px;word-break:break-all">'+r.invite_link+'</code>';$("#invEmail").value="";loadTeam();}catch(e){$("#invStatus").textContent=e.status===403?"Only admins can invite.":"Could not send invite.";}};
 async function loadAudit(){try{const d=await api("/api/audit?n=40");const w=$("#auditList");w.innerHTML="";const ev=d.events||[];if(!ev.length){w.innerHTML='<div class="hint">No activity yet.</div>';return;}ev.forEach(e=>{const t=new Date((e.created||0)*1000).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});const d2=el("div");d2.style.cssText="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--line);font-size:12px";d2.innerHTML=`<span><b>${e.action}</b> <span style="color:var(--sec)">${e.detail||""}</span></span><span class="tn" style="color:var(--muted)">${t} · ${e.actor||""}</span>`;w.appendChild(d2);});}catch(e){}}
 $("#btnReport").onclick=async()=>{$("#ovReportStatus").textContent="Generating…";try{const h={};if(S.token)h.Authorization="Bearer "+S.token;const r=await fetch(S.base+"/api/report",{headers:h});const ct=r.headers.get("Content-Type")||"";if(ct.includes("application/pdf")){const b=await r.blob();const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="terra-report.pdf";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);$("#ovReportStatus").textContent="Downloaded.";}else{const d=await r.json();$("#ovReportStatus").innerHTML=(d.error||"Report unavailable")+(r.status===402?' · <a href="/pricing" style="color:var(--ink)">Upgrade</a>':"");}}catch(e){$("#ovReportStatus").textContent="Could not generate report.";}};
 function prefillEmail(){const em=(S.me&&S.me.user&&S.me.user.email)||"";if(em&&em!=="local"&&em!=="apikey"){const a=$("#oEmail"),b=$("#sEmail");if(a&&!a.value)a.value=em;if(b&&!b.value)b.value=em;}}

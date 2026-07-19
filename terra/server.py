@@ -487,7 +487,7 @@ def make_handler(pf: Platform):
             host = self.headers.get("Host", "localhost")
             return f"{proto}://{host}"
 
-        def _gate(self, feature):
+        def _gate(self, feature, min_role=None):
             u = self._user()
             if u is None:
                 self._send(401, {"error": "sign in to continue"})
@@ -495,6 +495,21 @@ def make_handler(pf: Platform):
             if not acc.has_feature(u, feature):
                 self._send(402, {"error": "your plan does not include this",
                                  "feature": feature, "plan": u["plan"], "upgrade": True})
+                return None
+            if min_role and not acc.has_role(u, min_role):
+                self._send(403, {"error": "your role can't do this",
+                                 "need": min_role, "role": u.get("role")})
+                return None
+            return u
+
+        def _role(self, min_role):
+            u = self._user()
+            if u is None:
+                self._send(401, {"error": "sign in to continue"})
+                return None
+            if not acc.has_role(u, min_role):
+                self._send(403, {"error": "your role can't do this",
+                                 "need": min_role, "role": u.get("role")})
                 return None
             return u
 
@@ -550,6 +565,15 @@ def make_handler(pf: Platform):
                     return self._send(401, {"error": "sign in"})
                 n = int(q.get("n", ["100"])[0])
                 return self._send(200, {"events": audit.list_events(self._ws(), n)})
+            if p == "/api/team":
+                u = self._user()
+                if u is None:
+                    return self._send(401, {"error": "sign in"})
+                ws = u.get("workspace_id")
+                return self._send(200, {"me": {"user_id": u.get("user_id"), "role": u.get("role")},
+                                        "members": acc.list_members(ws),
+                                        "invites": acc.list_invites(ws),
+                                        "can_manage": acc.has_role(u, "admin")})
             if p == "/api/report":
                 if self._gate("history") is None:
                     return
@@ -665,17 +689,21 @@ def make_handler(pf: Platform):
             if p == "/api/auth/signup":
                 try:
                     r = acc.create_account(data.get("email"), data.get("password"),
-                                           data.get("workspace"))
+                                           data.get("workspace"),
+                                           invite_token=data.get("invite_token"))
                 except ValueError as e:
                     return self._send(400, {"error": str(e)})
-                audit.log(r["workspace_id"], data.get("email"), "account.create", "trial started")
-                try:
-                    from . import mailer
-                    mailer.send_welcome(data.get("email"),
-                                        data.get("workspace") or "your workspace",
-                                        acc.TRIAL_DAYS, origin=self._origin())
-                except Exception:
-                    pass
+                joined = bool(data.get("invite_token"))
+                audit.log(r["workspace_id"], data.get("email"), "account.create",
+                          f"joined as {r.get('role')}" if joined else "trial started")
+                if not joined:
+                    try:
+                        from . import mailer
+                        mailer.send_welcome(data.get("email"),
+                                            data.get("workspace") or "your workspace",
+                                            acc.TRIAL_DAYS, origin=self._origin())
+                    except Exception:
+                        pass
                 return self._send(200, {"token": r["token"],
                                         "user": acc.session_user(r["token"])})
             if p == "/api/auth/login":
@@ -696,8 +724,10 @@ def make_handler(pf: Platform):
                     acc.logout(t)
                 return self._send(200, {"ok": True})
             if p == "/api/billing/upgrade":
-                u = self._user()
-                if not u or not u.get("workspace_id"):
+                u = self._role("admin")
+                if u is None:
+                    return
+                if not u.get("workspace_id"):
                     return self._send(401, {"error": "sign in first"})
                 plan = data.get("plan", "pro")
                 if billing.enabled():
@@ -756,10 +786,12 @@ def make_handler(pf: Platform):
                           data.get("subject", ""))
                 return self._send(200, {"ok": True, "ticket_id": tid})
             if p == "/api/config":
+                if self._role("member") is None:
+                    return
                 pf.set_config(data)
                 return self._send(200, pf.config())
             if p == "/api/control":
-                u = self._gate("control")
+                u = self._gate("control", "member")
                 if u is None:
                     return
                 pf.autonomy = bool(data.get("autonomy"))
@@ -769,16 +801,56 @@ def make_handler(pf: Platform):
                           "on" if pf.autonomy else "off")
                 return self._send(200, pf.status())
             if p == "/api/offline":
-                if self._gate("control") is None:
+                if self._gate("control", "member") is None:
                     return
                 pf.offline = bool(data.get("offline"))
                 return self._send(200, pf.status())
             if p == "/api/calibrate":
-                u = self._gate("calibrate")
+                u = self._gate("calibrate", "member")
                 if u is None:
                     return
                 audit.log(u.get("workspace_id"), u.get("email"), "engine.calibrate", pf.cfg["domain"])
                 return self._send(200, pf.calibrate())
+            if p == "/api/team/invite":
+                u = self._role("admin")
+                if u is None:
+                    return
+                email = (data.get("email") or "").strip().lower()
+                role = data.get("role", "member")
+                if "@" not in email:
+                    return self._send(400, {"error": "a valid email is required"})
+                tok = acc.create_invite(u["workspace_id"], email, role)
+                link = f"{self._origin()}/app?invite={tok}"
+                try:
+                    from . import mailer
+                    mailer.send_invite(email, u.get("workspace") or "the workspace",
+                                       role, link, inviter=u.get("email"))
+                except Exception:
+                    pass
+                audit.log(u["workspace_id"], u.get("email"), "team.invite", f"{email} ({role})")
+                return self._send(200, {"ok": True, "invite_link": link,
+                                        "invites": acc.list_invites(u["workspace_id"])})
+            if p == "/api/team/role":
+                u = self._role("admin")
+                if u is None:
+                    return
+                ok = acc.set_role(u["workspace_id"], int(data.get("user_id", 0)),
+                                  data.get("role", "member"))
+                if ok:
+                    audit.log(u["workspace_id"], u.get("email"), "team.role",
+                              f"user {data.get('user_id')} -> {data.get('role')}")
+                return self._send(200 if ok else 400,
+                                  {"ok": ok, "members": acc.list_members(u["workspace_id"])})
+            if p == "/api/team/remove":
+                u = self._role("admin")
+                if u is None:
+                    return
+                ok = acc.remove_member(u["workspace_id"], int(data.get("user_id", 0)))
+                if ok:
+                    audit.log(u["workspace_id"], u.get("email"), "team.remove",
+                              f"user {data.get('user_id')}")
+                return self._send(200 if ok else 400,
+                                  {"ok": ok, "members": acc.list_members(u["workspace_id"])})
             if p == "/api/alerts/rules":
                 if self._gate("alerts") is None:
                     return
@@ -806,21 +878,21 @@ def make_handler(pf: Platform):
                                      bool(data.get("enabled")))
                 return self._send(200, {"rules": alertmod.list_rules(self._ws())})
             if p == "/api/keys/create":
-                if self._gate("api") is None:
+                if self._gate("api", "admin") is None:
                     return
                 k = reg.create_api_key(self._ws(), data.get("name", "default"))
                 audit.log(self._ws(), (self._user() or {}).get("email"), "apikey.create",
                           k.get("prefix", ""))
                 return self._send(200, k)   # full key returned once
             if p == "/api/keys/revoke":
-                if self._gate("api") is None:
+                if self._gate("api", "admin") is None:
                     return
                 reg.revoke_api_key(self._ws(), int(data.get("id", 0)))
                 return self._send(200, {"keys": reg.list_api_keys(self._ws())})
             if p == "/api/nodes/enroll-token":
-                u = self._user()
-                if not u:
-                    return self._send(401, {"error": "sign in first"})
+                u = self._role("admin")
+                if u is None:
+                    return
                 tok = reg.create_enroll_token(u["workspace_id"])
                 audit.log(u["workspace_id"], u.get("email"), "node.enroll_token", "")
                 return self._send(200, {"enroll_token": tok, "expires_in": reg.ENROLL_TOKEN_TTL})

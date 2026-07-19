@@ -33,6 +33,18 @@ PLAN_FEATURES = {
 }
 FREE_HISTORY_ROWS = 500
 
+# role hierarchy: higher rank can do everything a lower rank can
+ROLES = {"owner": 3, "admin": 2, "member": 1, "viewer": 0}
+INVITE_DAYS = 7
+
+
+def role_rank(role: str | None) -> int:
+    return ROLES.get(role or "viewer", 0)
+
+
+def has_role(user: dict, min_role: str) -> bool:
+    return role_rank((user or {}).get("role")) >= role_rank(min_role)
+
 
 def _conn():
     os.makedirs(HOME, exist_ok=True)
@@ -52,6 +64,9 @@ def init_db():
       workspace_id INTEGER, role TEXT DEFAULT 'owner', created REAL);
     CREATE TABLE IF NOT EXISTS sessions(
       token TEXT PRIMARY KEY, user_id INTEGER, created REAL, expires REAL);
+    CREATE TABLE IF NOT EXISTS invites(
+      token_hash TEXT PRIMARY KEY, workspace_id INTEGER, email TEXT, role TEXT,
+      created REAL, expires REAL, used INTEGER DEFAULT 0);
     """)
     c.commit()
     c.close()
@@ -59,6 +74,10 @@ def init_db():
 
 def _hash(pw: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 200_000).hex()
+
+
+def _h(s: str) -> str:
+    return hashlib.sha256((s or "").encode()).hexdigest()
 
 
 def has_users() -> bool:
@@ -69,7 +88,8 @@ def has_users() -> bool:
     return n > 0
 
 
-def create_account(email: str, password: str, workspace: str = None) -> dict:
+def create_account(email: str, password: str, workspace: str = None,
+                   invite_token: str = None) -> dict:
     init_db()
     email = (email or "").strip().lower()
     if "@" not in email or len(password or "") < 8:
@@ -79,18 +99,34 @@ def create_account(email: str, password: str, workspace: str = None) -> dict:
         c.close()
         raise ValueError("an account with that email already exists")
     now = time.time()
+    salt = secrets.token_hex(16)
+    if invite_token:
+        # joining an existing workspace with the invited role (no new trial)
+        inv = c.execute("SELECT * FROM invites WHERE token_hash=?",
+                        (_h(invite_token),)).fetchone()
+        if not inv or inv["used"] or (inv["expires"] or 0) < now:
+            c.close()
+            raise ValueError("invalid or expired invite")
+        ws = inv["workspace_id"]
+        role = inv["role"] if inv["role"] in ROLES else "member"
+        uid = c.execute(
+            "INSERT INTO users(email, salt, pw, workspace_id, role, created) VALUES(?,?,?,?,?,?)",
+            (email, salt, _hash(password, salt), ws, role, now)).lastrowid
+        c.execute("UPDATE invites SET used=1 WHERE token_hash=?", (_h(invite_token),))
+        c.commit()
+        c.close()
+        return {"user_id": uid, "workspace_id": ws, "role": role, "token": _new_session(uid)}
     ws = c.execute(
         "INSERT INTO workspaces(name, plan, trial_ends, created) VALUES(?,?,?,?)",
         (workspace or email.split("@")[0], "trial", now + TRIAL_DAYS * 86400, now)
     ).lastrowid
-    salt = secrets.token_hex(16)
     uid = c.execute(
         "INSERT INTO users(email, salt, pw, workspace_id, role, created) VALUES(?,?,?,?,?,?)",
         (email, salt, _hash(password, salt), ws, "owner", now)
     ).lastrowid
     c.commit()
     c.close()
-    return {"user_id": uid, "workspace_id": ws, "token": _new_session(uid)}
+    return {"user_id": uid, "workspace_id": ws, "role": "owner", "token": _new_session(uid)}
 
 
 def login(email: str, password: str) -> str | None:
@@ -150,6 +186,83 @@ def workspace_user(workspace_id: int) -> dict | None:
             "workspace_id": ws["id"], "workspace": ws["name"],
             "plan": effective_plan(ws), "raw_plan": ws["plan"],
             "trial_ends": ws["trial_ends"]}
+
+
+def create_invite(workspace_id: int, email: str, role: str = "member") -> str:
+    """Create a one-time invite to join a workspace; returns the raw token."""
+    init_db()
+    if role not in ROLES or role == "owner":
+        role = "member"
+    tok = "inv_" + secrets.token_urlsafe(18)
+    now = time.time()
+    c = _conn()
+    c.execute("INSERT INTO invites(token_hash,workspace_id,email,role,created,expires,used) "
+              "VALUES(?,?,?,?,?,?,0)",
+              (_h(tok), workspace_id, (email or "").strip().lower(), role,
+               now, now + INVITE_DAYS * 86400))
+    c.commit()
+    c.close()
+    return tok
+
+
+def list_invites(workspace_id: int) -> list:
+    init_db()
+    c = _conn()
+    rows = c.execute("SELECT email,role,created,expires FROM invites "
+                     "WHERE workspace_id=? AND used=0 AND expires>? ORDER BY created DESC",
+                     (workspace_id, time.time())).fetchall()
+    c.close()
+    return [dict(r) for r in rows]
+
+
+def list_members(workspace_id: int) -> list:
+    init_db()
+    c = _conn()
+    rows = c.execute("SELECT id,email,role,created FROM users WHERE workspace_id=? "
+                     "ORDER BY created", (workspace_id,)).fetchall()
+    c.close()
+    return [dict(r) for r in rows]
+
+
+def _owner_count(c, workspace_id: int) -> int:
+    return c.execute("SELECT COUNT(*) n FROM users WHERE workspace_id=? AND role='owner'",
+                     (workspace_id,)).fetchone()["n"]
+
+
+def set_role(workspace_id: int, user_id: int, role: str) -> bool:
+    if role not in ROLES:
+        return False
+    c = _conn()
+    u = c.execute("SELECT * FROM users WHERE id=? AND workspace_id=?",
+                  (user_id, workspace_id)).fetchone()
+    if not u:
+        c.close()
+        return False
+    # never demote the last owner
+    if u["role"] == "owner" and role != "owner" and _owner_count(c, workspace_id) <= 1:
+        c.close()
+        return False
+    c.execute("UPDATE users SET role=? WHERE id=?", (role, user_id))
+    c.commit()
+    c.close()
+    return True
+
+
+def remove_member(workspace_id: int, user_id: int) -> bool:
+    c = _conn()
+    u = c.execute("SELECT * FROM users WHERE id=? AND workspace_id=?",
+                  (user_id, workspace_id)).fetchone()
+    if not u:
+        c.close()
+        return False
+    if u["role"] == "owner" and _owner_count(c, workspace_id) <= 1:
+        c.close()
+        return False
+    c.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
+    c.execute("DELETE FROM users WHERE id=?", (user_id,))
+    c.commit()
+    c.close()
+    return True
 
 
 def effective_plan(ws) -> str:

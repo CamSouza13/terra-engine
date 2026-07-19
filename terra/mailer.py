@@ -99,6 +99,19 @@ def send_order_confirmation(to: str, order_id: int, board: str, tier: str,
     return send(to, f"{BRAND} order #{order_id} received", text, html)
 
 
+def send_invite(to: str, workspace: str, role: str, link: str,
+                inviter: str = "") -> bool:
+    by = f" by {inviter}" if inviter else ""
+    text = (f"You've been invited{by} to join the {workspace} workspace on {BRAND} "
+            f"as {role}.\n\nAccept your invite: {link}\n\n{BRAND} · {TAGLINE}")
+    html = _wrap_html(
+        f"Join {workspace} on {BRAND}",
+        f"You've been invited{by} to join the <b>{workspace}</b> workspace as "
+        f"<b>{role}</b>. Set a password to accept and you're in.",
+        cta=("Accept invite", link))
+    return send(to, f"You're invited to {workspace} on {BRAND}", text, html)
+
+
 def send_ticket_confirmation(to: str, ticket_id: int, subject: str,
                              origin: str = "") -> bool:
     text = (f"We received your support request (#{ticket_id}): {subject}\n\n"
