@@ -75,7 +75,7 @@ def test_welcome_order_ticket_composed():
 
 def test_order_path_sends_customer_confirmation(tmp_path=None):
     import tempfile
-    m = _configure()
+    _configure()
     with tempfile.TemporaryDirectory() as tmp:
         from terra import accounts, support
         importlib.reload(accounts)
