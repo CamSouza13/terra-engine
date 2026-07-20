@@ -73,10 +73,15 @@ def create_checkout_session(workspace_id: int, plan: str,
 
 
 def verify_signature(payload: bytes, sig_header: str) -> bool:
-    """Verify a Stripe-Signature header. No secret set => accept (dev only)."""
+    """Verify a Stripe-Signature header.
+
+    Fails closed: if billing is live (a secret key is set) but no webhook secret is
+    configured, reject — otherwise anyone could POST forged events to change plans.
+    Only when billing is entirely unconfigured (pure local dev) do we accept.
+    """
     secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
     if not secret:
-        return True
+        return not enabled()   # accept only if billing is off (dev); reject in prod
     if not sig_header:
         return False
     parts = dict(p.split("=", 1) for p in sig_header.split(",") if "=" in p)

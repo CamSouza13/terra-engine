@@ -15,6 +15,7 @@ Plans and what they unlock:
 from __future__ import annotations
 
 import hashlib
+import hmac
 import os
 import secrets
 import sqlite3
@@ -143,7 +144,7 @@ def login(email: str, password: str) -> str | None:
     c = _conn()
     u = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     c.close()
-    if not u or _hash(password, u["salt"]) != u["pw"]:
+    if not u or not hmac.compare_digest(_hash(password, u["salt"]), u["pw"]):
         return None
     return _new_session(u["id"])
 

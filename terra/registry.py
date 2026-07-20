@@ -19,6 +19,7 @@ All of it is stdlib SQLite in the same ``$TERRA_HOME/terra.db`` as accounts.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -190,7 +191,7 @@ def verify_node_key(node_id: str, key: str) -> int | None:
     row = c.execute("SELECT workspace_id,key_hash FROM node_creds WHERE node_id=?",
                     (node_id,)).fetchone()
     c.close()
-    if not row or row["key_hash"] != _h(key):
+    if not row or not hmac.compare_digest(row["key_hash"], _h(key)):
         return None
     return row["workspace_id"]
 

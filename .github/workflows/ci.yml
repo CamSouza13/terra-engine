@@ -68,6 +68,9 @@ jobs:
       - name: Run auth/analytics/hardware tests
         run: python tests/test_authcomplete.py
 
+      - name: Run security-hardening tests
+        run: python tests/test_security.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

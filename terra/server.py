@@ -60,21 +60,36 @@ LOCAL_USER = {"user_id": 0, "email": "local", "role": "owner", "workspace_id": 0
 LOCAL_WS = int(os.environ.get("TERRA_WORKSPACE", "0"))
 LOCAL_NODE = os.environ.get("TERRA_NODE", "local")
 
-# login rate limiting: max failed attempts per identity within the window
-_LOGIN_FAILS: dict = {}
+# request hardening config
+MAX_BODY = int(os.environ.get("TERRA_MAX_BODY", str(2 * 1024 * 1024)))  # 2 MB default
+# CORS: comma-separated allowlist of origins; empty means same-origin only (no ACAO)
+CORS_ORIGINS = {o.strip() for o in os.environ.get("TERRA_CORS_ORIGINS", "").split(",") if o.strip()}
+# billing stub (free plan set) only allowed when explicitly opted in
+ALLOW_STUB_BILLING = bool(os.environ.get("TERRA_ALLOW_STUB_BILLING"))
+
+# generic in-memory rate limiter: buckets of recent event timestamps per key
+_RL: dict = {}
 LOGIN_MAX_FAILS = 6
 LOGIN_WINDOW = 300.0
 
 
-def _login_blocked(key: str) -> bool:
+def _rl_blocked(key: str, limit: int, window: float) -> bool:
     now = time.time()
-    hits = [t for t in _LOGIN_FAILS.get(key, []) if now - t < LOGIN_WINDOW]
-    _LOGIN_FAILS[key] = hits
-    return len(hits) >= LOGIN_MAX_FAILS
+    hits = [t for t in _RL.get(key, []) if now - t < window]
+    _RL[key] = hits
+    return len(hits) >= limit
+
+
+def _rl_hit(key: str):
+    _RL.setdefault(key, []).append(time.time())
+
+
+def _login_blocked(key: str) -> bool:
+    return _rl_blocked("login:" + key, LOGIN_MAX_FAILS, LOGIN_WINDOW)
 
 
 def _login_fail(key: str):
-    _LOGIN_FAILS.setdefault(key, []).append(time.time())
+    _rl_hit("login:" + key)
 
 # nominal process input per domain when a log doesn't carry one
 NOMINAL_U = {"aquaculture": [0.22, 1.0], "soil": [0.5, 0.02, 0.0],
@@ -424,13 +439,20 @@ def make_handler(pf: Platform):
         def log_message(self, *a):
             pass
 
+        def _cors(self):
+            # same-origin console needs no CORS; only echo an explicitly allowlisted origin
+            origin = self.headers.get("Origin")
+            if origin and origin in CORS_ORIGINS:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers",
+                                 "Content-Type, Authorization, X-Node-Key, X-API-Key")
+
         def _send(self, code, body, ctype="application/json"):
             self.send_response(code)
             self.send_header("Content-Type", ctype)
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers",
-                             "Content-Type, Authorization, X-Node-Key, X-API-Key")
+            self._cors()
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("X-Frame-Options", "DENY")
             self.send_header("Referrer-Policy", "no-referrer")
@@ -523,11 +545,13 @@ def make_handler(pf: Platform):
                 return self._send(200, {"auth_enforced": AUTH_ENFORCED,
                     "authenticated": bool(u and u.get("email") != "local"),
                     "user": u, "trial_days_left": (acc.trial_days_left(u) if u else 0)})
-            if p == "/api/status":
-                return self._send(200, pf.status())
-            if p == "/api/config":
-                return self._send(200, pf.config())
-            if p == "/api/state":
+            if p in ("/api/status", "/api/config", "/api/state"):
+                if self._user() is None:
+                    return self._send(401, {"error": "sign in to continue"})
+                if p == "/api/status":
+                    return self._send(200, pf.status())
+                if p == "/api/config":
+                    return self._send(200, pf.config())
                 return self._send(200, pf.state())
             if p == "/api/history":
                 u = self._user()
@@ -603,7 +627,7 @@ def make_handler(pf: Platform):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/pdf")
                 self.send_header("Content-Disposition", "attachment; filename=terra-report.pdf")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self._cors()
                 self.end_headers()
                 return self.wfile.write(pdf)
             if p == "/api/orders":
@@ -642,10 +666,12 @@ def make_handler(pf: Platform):
                     return self._send(402, {"error": "API access needs a paid plan"})
                 return self._send(200, pf.history(int(q.get("n", ["200"])[0])))
             if p == "/api/export":
+                if self._user() is None:
+                    return self._send(401, {"error": "sign in"})
                 self.send_response(200)
                 self.send_header("Content-Type", "text/csv")
                 self.send_header("Content-Disposition", "attachment; filename=terra-history.csv")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self._cors()
                 self.end_headers()
                 return self.wfile.write(pf.export_csv().encode())
             if p.startswith("/assets/"):
@@ -685,9 +711,14 @@ def make_handler(pf: Platform):
 
         def do_POST(self):
             n = int(self.headers.get("Content-Length", 0) or 0)
+            if n > MAX_BODY:
+                self.close_connection = True   # don't read an oversized body into memory
+                return self._send(413, {"error": "request body too large"})
             raw = self.rfile.read(n) if n else b""
             p = self.path.split("?")[0]
             if p == "/api/ingest":
+                if self._gate("control", "member") is None:
+                    return
                 pf.ingest(raw.decode("utf-8", "replace"), "uploaded.csv")
                 return self._send(200, pf.status())
             try:
@@ -695,6 +726,10 @@ def make_handler(pf: Platform):
             except Exception:
                 data = {}
             if p == "/api/auth/signup":
+                ip = self.client_address[0]
+                if _rl_blocked("signup:" + ip, 10, 3600):
+                    return self._send(429, {"error": "too many signups — try later"})
+                _rl_hit("signup:" + ip)
                 try:
                     r = acc.create_account(data.get("email"), data.get("password"),
                                            data.get("workspace"),
@@ -725,7 +760,7 @@ def make_handler(pf: Platform):
                 if not tok:
                     _login_fail(ident)
                     return self._send(401, {"error": "invalid email or password"})
-                _LOGIN_FAILS.pop(ident, None)
+                _RL.pop("login:" + ident, None)
                 u2 = acc.session_user(tok)
                 audit.log(u2.get("workspace_id") if u2 else None, data.get("email"), "auth.login", "")
                 return self._send(200, {"token": tok, "user": u2})
@@ -735,6 +770,10 @@ def make_handler(pf: Platform):
                     acc.logout(t)
                 return self._send(200, {"ok": True})
             if p == "/api/auth/reset-request":
+                ip = self.client_address[0]
+                if _rl_blocked("reset:" + ip, 5, 3600):
+                    return self._send(429, {"error": "too many reset requests — try later"})
+                _rl_hit("reset:" + ip)
                 tok = acc.create_reset(data.get("email"))
                 if tok:
                     try:
@@ -789,7 +828,11 @@ def make_handler(pf: Platform):
                     except Exception as e:
                         return self._send(400, {"error": f"billing error: {e}"})
                     return self._send(200, {"url": sess.get("url"), "plan": plan})
-                # Stripe not configured: documented stub sets the plan directly
+                # Stripe not configured. The stub sets the plan directly for local dev
+                # only; on a real deploy this would be a free self-upgrade, so it is
+                # disabled unless explicitly opted in.
+                if not ALLOW_STUB_BILLING:
+                    return self._send(503, {"error": "billing is not configured"})
                 acc.set_plan(u["workspace_id"], plan)
                 audit.log(u["workspace_id"], u.get("email"), "billing.plan", plan + " (stub)")
                 return self._send(200, {"ok": True, "plan": plan, "stub": True})
