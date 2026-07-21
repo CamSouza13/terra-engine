@@ -1,9 +1,9 @@
-"""The Terra edge-node runtime.
+"""Edge-node runtime.
 
-Wraps a ``TerraEngine`` in a service loop: read a cycle from the driver, step
-the estimator, surface new events, and persist state atomically so the node
-survives restarts. Numpy-only, so it runs on a Raspberry Pi Zero 2 W (512 MB)
-and is fully testable without hardware.
+Wraps a ``TerraEngine`` in a service loop: read a cycle from the driver, step the
+estimator, surface new events, and persist state atomically so the node survives
+restarts. NumPy-only, so it runs on a Raspberry Pi Zero 2 W (512 MB) and is
+testable without hardware.
 """
 from __future__ import annotations
 
@@ -15,14 +15,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..core import TerraEngine, EngineConfig
-
-BANNER = r"""
-  ______                   ____      _
- /_  __/__ ___________ _  / __/___ _(_)__  ___
-  / / / -_) __/ __/ _ `/ / _// _ `/ / _ \/ -_)
- /_/  \__/_/ /_/  \_,_/ /___/\_, /_/_//_/\__/
-   edge node  ·  from the mud/___/ to the moon
-"""
 
 
 @dataclass
@@ -114,8 +106,7 @@ class NodeRunner:
     # ---- the service loop ----
     def run(self, on_event=None, banner: bool = False, on_cycle=None) -> dict:
         if banner:
-            print(BANNER)
-            print(f"  domain: {self.spec.name}  |  resuming at cycle {self.cycles}\n")
+            print(f"terra node: domain={self.spec.name} resuming at cycle {self.cycles}")
         uf = getattr(self.driver, "u_forecast", None)
         seen = len(self.engine.events)
         run_cycles = 0

@@ -1,16 +1,15 @@
-"""The Terra platform server: real engine, real storage, real config.
+"""Platform HTTP server.
 
-`terra serve` starts a stdlib HTTP server that runs the actual engine, persists
-configuration and the estimate history to disk, ingests real logged sensor data,
-runs real calibration, and serves the web console from the same origin. Nothing
-is simulated in the browser and no numbers are fabricated — every value the
-console shows is computed by the Python engine here and stored under
-``$TERRA_HOME`` (default ``~/.terra``).
+``terra serve`` starts a standard-library HTTP server that runs the engine,
+persists configuration and estimate history to disk, ingests logged sensor data,
+runs calibration, and serves the web console from the same origin. Every value the
+console shows is computed here and stored under ``$TERRA_HOME`` (default
+``~/.terra``); nothing is computed in the browser.
 
 Data source, in order of preference:
-  1. a hardware ``SensorDriver`` (when wired — see terra/node/driver.py),
-  2. a real logged CSV you ingest (POST /api/ingest or `terra serve --log`),
-  3. the repo's sample log, so the engine has real rows to run on out of the box.
+  1. a hardware ``SensorDriver`` (see terra/node/driver.py),
+  2. a logged CSV ingested via the API or ``terra serve --log``,
+  3. the bundled sample log, only when ``TERRA_DEMO`` is set.
 
 Endpoints:
   GET  /                -> web console
@@ -20,8 +19,8 @@ Endpoints:
   GET  /api/state       -> latest engine estimate (channels, hidden, risks, events)
   GET  /api/history?n=  -> last n persisted snapshots (for the live chart)
   GET  /api/export      -> the stored history as CSV (download)
-  POST /api/ingest      -> upload a CSV log; engine replays it for real
-  POST /api/calibrate   -> run the real NUTS fit on the active log; persist params
+  POST /api/ingest      -> upload a CSV log for the engine to replay (auth required)
+  POST /api/calibrate   -> run the NUTS fit on the active log; persist params
   POST /api/control     -> {"autonomy": bool}
   POST /api/offline     -> {"offline": bool}   (edge-autonomous mode)
 """
@@ -469,12 +468,7 @@ def make_handler(pf: Platform):
 
         def _token(self):
             h = self.headers.get("Authorization", "")
-            if h.startswith("Bearer "):
-                return h[7:]
-            for part in self.headers.get("Cookie", "").split(";"):
-                if part.strip().startswith("terra_session="):
-                    return part.strip()[14:]
-            return None
+            return h[7:] if h.startswith("Bearer ") else None
 
         def _user(self):
             u = acc.session_user(self._token())

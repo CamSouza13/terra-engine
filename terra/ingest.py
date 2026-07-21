@@ -3,7 +3,7 @@
 The CSV is a time column plus one column per sensor channel (names matching the
 domain's channels, or remapped via `channel_map`). A blank cell or a missing
 column simply means that sensor did not report — the engine rides on whatever
-channels are present, so partial and irregular logs work out of the box.
+channels are present, so partial and irregular logs are handled.
 
 Stdlib + NumPy only; no pandas dependency.
 """

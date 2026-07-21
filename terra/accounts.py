@@ -1,16 +1,15 @@
-"""Accounts, workspaces, sessions, and plan/paywall logic.
+"""Accounts, workspaces, sessions, and plan/feature gating.
 
-A real, dependency-free auth + billing-state layer for the platform, backed by
-SQLite under ``$TERRA_HOME`` (default ``~/.terra``). It is the seam a hosted
-deployment swaps for Postgres + Stripe: the plan/feature model here is the
-source of truth the server enforces, and ``set_plan`` is what a Stripe webhook
-would call. Passwords are salted PBKDF2 (stdlib); sessions are opaque tokens.
+SQLite-backed (under ``$TERRA_HOME``, default ``~/.terra``) with no third-party
+dependencies. The plan/feature model here is the source of truth the server
+enforces; ``set_plan`` is the entry point a Stripe webhook calls. Passwords use
+salted PBKDF2; sessions are opaque tokens.
 
-Plans and what they unlock:
-  trial  — everything, for 14 days, then auto-downgrades to free
-  free   — dashboard + email alerts + short history; no calibration or control
-  pro    — calibration, control/autonomy, full history, alerts, API
-  fleet  — pro + multi-node fleet, SSO, roles
+Plans:
+  trial  all features for 14 days, then downgrades to free
+  free   dashboard, email alerts, short history
+  pro    calibration, control, full history, alerts, API
+  fleet  pro plus multi-node fleet, SSO, roles
 """
 from __future__ import annotations
 

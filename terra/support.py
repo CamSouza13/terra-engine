@@ -1,6 +1,6 @@
 """Parts orders and support tickets.
 
-Real, durable storage for two customer actions: ordering node hardware and asking
+Durable storage for two customer actions: ordering node hardware and asking
 for help. Both accept a workspace id when the requester is signed in and fall back
 to just an email for public (pre-login) submissions. On write we best-effort email
 a notification to ``TERRA_SUPPORT_EMAIL`` (via the alerts SMTP config) so requests

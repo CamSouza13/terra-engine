@@ -1,13 +1,10 @@
-"""Customer-facing email: one sender, branded templates.
+"""Customer-facing email: one sender and a small set of templates.
 
-Every message the platform sends to a *customer* — a welcome on signup, an order
-confirmation, a support-ticket receipt, and the alert notifications — goes through
-``send`` here. It's a no-op unless SMTP is configured (``TERRA_SMTP_*``), so local
-and unconfigured deployments never fail; when configured it sends a multipart
-text+HTML email from your ``TERRA_SMTP_FROM`` address.
-
-Stdlib only. For good deliverability to real customers, point ``TERRA_SMTP_FROM``
-at an address on a verified domain and use a transactional provider.
+Welcome, order confirmation, support-ticket receipt, and alert notifications all go
+through ``send``. It is a no-op unless SMTP is configured (``TERRA_SMTP_*``); when
+configured it sends a multipart text+HTML message from ``TERRA_SMTP_FROM``.
+Standard library only. For deliverability, point ``TERRA_SMTP_FROM`` at a verified
+domain served by a transactional provider.
 """
 from __future__ import annotations
 
@@ -16,7 +13,7 @@ import smtplib
 from email.message import EmailMessage
 
 BRAND = "Terra"
-TAGLINE = "from the mud to the moon"
+TAGLINE = "terralaboratories.com"
 
 
 def configured() -> bool:

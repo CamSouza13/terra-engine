@@ -1,11 +1,10 @@
-"""Stripe billing: real Checkout sessions and webhook-driven plan changes.
+"""Stripe billing: Checkout sessions and webhook-driven plan changes.
 
-This is the other half of the ``accounts.set_plan`` seam. When the Stripe
-environment is configured the platform creates a real hosted Checkout session and
-returns its URL; after the customer pays, Stripe calls the webhook and we flip the
-workspace's plan. When Stripe is *not* configured everything still works — the
-server falls back to a documented stub — so local and trial flows never depend on
-live keys.
+The counterpart to ``accounts.set_plan``. When the Stripe environment is
+configured, the platform creates a hosted Checkout session and returns its URL;
+after payment, Stripe calls the webhook and the workspace plan is updated. When
+Stripe is not configured the endpoints degrade gracefully, so local and trial
+flows do not depend on live keys.
 
 Configuration (set as Fly secrets, never committed):
   STRIPE_SECRET_KEY       sk_live_… / sk_test_…
