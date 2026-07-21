@@ -79,10 +79,18 @@ X-Node-Key: nk_…                     # per-node key (ingest), with X-Node-Id</
 
 [ { "t": 12.5, "cycles": 50, "channels": {…}, "hidden": {…}, "nis": 1.9 }, … ]</pre>
 
+  <h3><span class="m">GET</span> /api/v1/config</h3>
+  <p>The provisioning bundle a node applies to run your configured domain and calibrated parameters offline. Authenticate with a node key (or an API key).</p>
+  <pre>curl -s $ORIGIN/api/v1/config -H 'X-Node-Key: nk_…' -H 'X-Node-Id: node_ab12cd34'
+
+{ "domain":"aquaculture", "channels":null, "params":{…}, "safety":[…],
+  "speed":0.4, "alerts":[…] }</pre>
+  <p>The node caches this to disk and rebuilds its engine from it, so it runs the same online or offline.</p>
+
   <h2>Errors</h2>
   <p><code>401</code> missing/invalid credential · <code>402</code> plan doesn't include this · <code>429</code> too many attempts. Bodies look like <code>{"error":"…"}</code>.</p>
 
-  <div style="margin-top:36px;font-size:12px;color:var(--muted)">Terra · from the mud to the moon.</div>
+  <div style="margin-top:36px;font-size:12px;color:var(--muted)">Terra · terralaboratories.com</div>
 </div>
 </body>
 </html>

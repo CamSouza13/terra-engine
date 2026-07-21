@@ -71,6 +71,9 @@ jobs:
       - name: Run security-hardening tests
         run: python tests/test_security.py
 
+      - name: Run config-handoff tests
+        run: python tests/test_handoff.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

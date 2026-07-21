@@ -19,6 +19,7 @@ import urllib.request
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 CREDS_PATH = os.path.join(HOME, "node_creds.json")
+CONFIG_PATH = os.path.join(HOME, "node_config.json")
 
 
 def _post(url: str, payload: dict, headers: dict = None, timeout: float = 10.0) -> dict:
@@ -27,6 +28,20 @@ def _post(url: str, payload: dict, headers: dict = None, timeout: float = 10.0) 
     req = urllib.request.Request(url, data=data, headers=h)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read() or b"{}")
+
+
+def _get(url: str, headers: dict = None, timeout: float = 10.0) -> dict:
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read() or b"{}")
+
+
+def _save_json(path: str, obj: dict):
+    os.makedirs(HOME, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f)
+    os.replace(tmp, path)
 
 
 def enroll(server: str, enroll_token: str, node_id: str = None,
@@ -40,12 +55,9 @@ def enroll(server: str, enroll_token: str, node_id: str = None,
         raise SystemExit("enrollment failed: invalid or expired token")
     creds = {"server": server, "node_id": r["node_id"], "node_key": r["node_key"],
              "name": name, "domain": domain}
-    os.makedirs(HOME, exist_ok=True)
-    tmp = CREDS_PATH + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(creds, f)
-    os.replace(tmp, CREDS_PATH)
+    _save_json(CREDS_PATH, creds)
     os.chmod(CREDS_PATH, 0o600)
+    fetch_config(creds)   # provision the node with the workspace's configuration
     return creds
 
 
@@ -60,6 +72,42 @@ def load_creds(server: str = None) -> dict | None:
     if server:
         c["server"] = server.rstrip("/")
     return c
+
+
+def fetch_config(creds: dict) -> dict | None:
+    """Fetch the workspace's config bundle from the platform and cache it locally."""
+    try:
+        bundle = _get(creds["server"].rstrip("/") + "/api/v1/config",
+                      {"X-Node-Key": creds["node_key"], "X-Node-Id": creds["node_id"]})
+    except Exception:
+        return None
+    if bundle.get("domain"):
+        _save_json(CONFIG_PATH, bundle)
+        return bundle
+    return None
+
+
+def load_config() -> dict | None:
+    if not os.path.exists(CONFIG_PATH):
+        return None
+    try:
+        with open(CONFIG_PATH) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def build_spec_from_bundle(bundle: dict):
+    """Reconstruct a domain spec with the bundle's calibrated parameters applied."""
+    import dataclasses
+
+    from ..domains import DOMAINS
+    spec = DOMAINS[bundle["domain"]].build_spec()
+    params = {k: v for k, v in (bundle.get("params") or {}).items()
+              if hasattr(spec.params, k)}
+    if params:
+        spec = dataclasses.replace(spec, params=dataclasses.replace(spec.params, **params))
+    return spec
 
 
 def build_metrics(spec, est) -> dict:

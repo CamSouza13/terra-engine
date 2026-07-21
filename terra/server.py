@@ -363,6 +363,19 @@ class Platform:
                 "hardware": self.cfg.get("hardware", {}),
                 "params": self.cfg.get("params", {})}
 
+    def config_bundle(self):
+        """The provisioning bundle a node applies to run this configuration —
+        domain, enabled channels, calibrated params, safety limits, and speed."""
+        d = self.spec
+        return {"domain": self.cfg["domain"],
+                "channels": self.cfg.get("channels"),
+                "params": self.cfg.get("params") or {},
+                "speed": float(self.cfg.get("speed", 0.4)),
+                "hidden": d.hidden,
+                "safety": [{"name": s.name, "limit": s.limit,
+                            "direction": s.direction, "units": s.units} for s in d.safety],
+                "generated": time.time()}
+
     def state(self):
         with self.lock():
             est = self.latest
@@ -659,6 +672,19 @@ def make_handler(pf: Platform):
                 if not acc.has_feature(u, "api"):
                     return self._send(402, {"error": "API access needs a paid plan"})
                 return self._send(200, pf.history(int(q.get("n", ["200"])[0])))
+            if p == "/api/v1/config":
+                # the provisioning bundle a node fetches so it runs the workspace's
+                # configured domain, channels, and calibrated parameters offline.
+                ws = reg.verify_node_key(self.headers.get("X-Node-Id"),
+                                         self.headers.get("X-Node-Key", ""))
+                if ws is None:
+                    au = self._api_user()
+                    ws = au.get("workspace_id") if au else None
+                if ws is None:
+                    return self._send(401, {"error": "provide a node key or API key"})
+                bundle = pf.config_bundle()
+                bundle["alerts"] = alertmod.list_rules(ws)
+                return self._send(200, bundle)
             if p == "/api/export":
                 if self._user() is None:
                     return self._send(401, {"error": "sign in"})

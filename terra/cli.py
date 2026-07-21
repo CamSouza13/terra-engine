@@ -85,14 +85,10 @@ def cmd_node(args) -> int:
             print(f"  [{'ok ' if passed else 'FAIL'}] {name}")
         print("self-test:", "PASS" if ok else "FAIL")
         return 0 if ok else 1
-    mod = _get_domain(args.domain)
-    spec, sim = mod.simulate()
-
-    # optional: enroll into a hosted workspace, then report heartbeats to it
-    reporter = None
-    if args.enroll or args.server:
-        from terra.node import report as rep
-        creds: dict
+    from terra.node import report as rep
+    creds = None
+    bundle = None
+    if args.enroll or args.server or args.offline:
         if args.enroll:
             if not args.server:
                 raise SystemExit("--enroll requires --server <platform url>")
@@ -100,12 +96,27 @@ def cmd_node(args) -> int:
                                name=args.name, domain=args.domain)
             print(f"enrolled as {creds['node_id']} -> {creds['server']}")
         else:
-            loaded = rep.load_creds(args.server)
-            if not loaded:
+            creds = rep.load_creds(args.server)
+            if creds is None and not args.offline:
                 raise SystemExit("no saved node credentials; run with --enroll <token> first")
-            creds = loaded
+        if creds is not None and not args.offline:
+            rep.fetch_config(creds)   # refresh the provisioning bundle from the platform
+        bundle = rep.load_config()
+
+    # build the engine spec from the provisioned bundle if present, else the CLI domain
+    if bundle and bundle.get("domain"):
+        spec = rep.build_spec_from_bundle(bundle)
+        _, sim = _get_domain(bundle["domain"]).simulate()
+        params = list((bundle.get("params") or {}).keys()) or "defaults"
+        print(f"running provisioned config: domain={bundle['domain']} params={params}"
+              f"{' (offline)' if args.offline else ''}")
+    else:
+        spec, sim = _get_domain(args.domain).simulate()
+
+    reporter = None
+    if creds is not None and not args.offline:
         reporter = rep.ServerReporter(spec, creds, interval_s=args.interval)
-        print(f"reporting to {creds['server']} every {args.interval:g}s")
+        print(f"reporting to {reporter.server} every {args.interval:g}s")
 
     state = os.environ.get("TERRA_STATE", "terra_node_state.json")
     runner = NodeRunner(
@@ -155,6 +166,8 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--name", default=None, help="display name for this node")
     n.add_argument("--interval", type=float, default=10.0,
                    help="seconds between heartbeats (default 10)")
+    n.add_argument("--offline", action="store_true",
+                   help="run from the saved config bundle with no network access")
     n.set_defaults(func=cmd_node)
 
     s = sub.add_parser("serve", help="serve the live engine API + web console")

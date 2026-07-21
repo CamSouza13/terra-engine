@@ -51,8 +51,15 @@ class NodeRunner:
         try:
             with open(p) as f:
                 d = json.load(f)
-            self.engine.ukf.x = np.array(d["x"], float)  # type: ignore[assignment]
-            self.engine.ukf.P = np.array(d["P"], float)  # type: ignore[assignment]
+            x = np.array(d["x"], float)
+            P = np.array(d["P"], float)
+            # discard state saved for a different domain/dimension (e.g. after the
+            # node is re-provisioned to another config) rather than crash on restore
+            if d.get("domain") != self.spec.name or x.shape != self.engine.ukf.x.shape \
+                    or P.shape != self.engine.ukf.P.shape:
+                return
+            self.engine.ukf.x = x  # type: ignore[assignment]
+            self.engine.ukf.P = P  # type: ignore[assignment]
             self.cycles = int(d.get("cycles", 0))
         except Exception:
             pass                      # corrupt/partial state: start clean
