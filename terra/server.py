@@ -551,7 +551,8 @@ def make_handler(pf: Platform):
                 u = self._user()
                 return self._send(200, {"auth_enforced": AUTH_ENFORCED,
                     "authenticated": bool(u and u.get("email") != "local"),
-                    "user": u, "trial_days_left": (acc.trial_days_left(u) if u else 0)})
+                    "user": u, "trial_days_left": (acc.trial_days_left(u) if u else 0),
+                    "trial_hours_left": (acc.trial_hours_left(u) if u else 0)})
             if p in ("/api/status", "/api/config", "/api/state"):
                 if self._user() is None:
                     return self._send(401, {"error": "sign in to continue"})
@@ -590,6 +591,7 @@ def make_handler(pf: Platform):
                 return self._send(200, {
                     "plan": (usr or {}).get("plan"),
                     "trial_days_left": acc.trial_days_left(usr) if usr else 0,
+                    "trial_hours_left": acc.trial_hours_left(usr) if usr else 0,
                     "workspace": (usr or {}).get("workspace"),
                     "domain": st["domain"], "source": st["source"],
                     "running": st["running"], "cycles": st["cycles"],
@@ -764,7 +766,7 @@ def make_handler(pf: Platform):
                         from . import mailer
                         mailer.send_welcome(data.get("email"),
                                             data.get("workspace") or "your workspace",
-                                            acc.TRIAL_DAYS, origin=self._origin())
+                                            acc.TRIAL_HOURS, origin=self._origin())
                         vtok = acc.create_verify(r["user_id"], data.get("email"))
                         mailer.send_verify(data.get("email"),
                                            f"{self._origin()}/app?verify={vtok}")
@@ -1005,6 +1007,12 @@ def make_handler(pf: Platform):
                 u = self._role("admin")
                 if u is None:
                     return
+                # free plan is capped at one node; multi_node lifts the cap
+                if not acc.has_feature(u, "multi_node") and \
+                        len(reg.list_nodes(u["workspace_id"])) >= acc.FREE_NODE_LIMIT:
+                    return self._send(402, {"error": "your plan is limited to "
+                                            f"{acc.FREE_NODE_LIMIT} node(s)",
+                                            "feature": "multi_node", "upgrade": True})
                 tok = reg.create_enroll_token(u["workspace_id"])
                 audit.log(u["workspace_id"], u.get("email"), "node.enroll_token", "")
                 return self._send(200, {"enroll_token": tok, "expires_in": reg.ENROLL_TOKEN_TTL})

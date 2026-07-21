@@ -22,16 +22,17 @@ import time
 
 HOME = os.environ.get("TERRA_HOME", os.path.expanduser("~/.terra"))
 DB_PATH = os.path.join(HOME, "terra.db")
-TRIAL_DAYS = 14
+TRIAL_HOURS = 72          # free trial length: full access for 72 hours
 SESSION_DAYS = 30
 
 PLAN_FEATURES = {
     "trial": {"calibrate", "control", "alerts", "api", "history", "multi_node"},
     "free":  {"alerts"},
-    "pro":   {"calibrate", "control", "alerts", "api", "history"},
+    "pro":   {"calibrate", "control", "alerts", "api", "history", "multi_node"},
     "fleet": {"calibrate", "control", "alerts", "api", "history", "multi_node", "sso", "roles"},
 }
 FREE_HISTORY_ROWS = 500
+FREE_NODE_LIMIT = 1       # free plan: one node; multi_node feature lifts this
 
 # role hierarchy: higher rank can do everything a lower rank can
 ROLES = {"owner": 3, "admin": 2, "member": 1, "viewer": 0}
@@ -126,7 +127,7 @@ def create_account(email: str, password: str, workspace: str = None,
         return {"user_id": uid, "workspace_id": ws, "role": role, "token": _new_session(uid)}
     ws = c.execute(
         "INSERT INTO workspaces(name, plan, trial_ends, created) VALUES(?,?,?,?)",
-        (workspace or email.split("@")[0], "trial", now + TRIAL_DAYS * 86400, now)
+        (workspace or email.split("@")[0], "trial", now + TRIAL_HOURS * 3600, now)
     ).lastrowid
     uid = c.execute(
         "INSERT INTO users(email, salt, pw, workspace_id, role, created) VALUES(?,?,?,?,?,?)",
@@ -393,3 +394,10 @@ def trial_days_left(user: dict) -> int:
     if user.get("raw_plan") != "trial" or not te:
         return 0
     return max(0, int((te - time.time()) / 86400 + 0.5))
+
+
+def trial_hours_left(user: dict) -> int:
+    te = user.get("trial_ends")
+    if user.get("raw_plan") != "trial" or not te:
+        return 0
+    return max(0, int((te - time.time()) / 3600 + 0.5))

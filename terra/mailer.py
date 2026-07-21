@@ -69,16 +69,16 @@ def send(to: str, subject: str, text: str, html: str = None) -> bool:
 
 # ---- templates ---------------------------------------------------------------
 
-def send_welcome(to: str, workspace: str, trial_days: int, origin: str = "") -> bool:
+def send_welcome(to: str, workspace: str, trial_hours: int, origin: str = "") -> bool:
     text = (f"Welcome to {BRAND}.\n\nYour workspace '{workspace}' is ready and your "
-            f"{trial_days}-day free trial has started — every feature is unlocked, no "
+            f"{trial_hours}-hour free trial has started; every feature is unlocked, no "
             f"card required.\n\nOpen the console: {origin or 'your Terra console'}\n\n"
             f"Reply to this email if you need anything.\n\n{BRAND} · {TAGLINE}")
     html = _wrap_html(
         f"Welcome to {BRAND}",
-        f"Your workspace <b>{workspace}</b> is ready, and your <b>{trial_days}-day free "
-        f"trial</b> has started — every feature unlocked, no card required. Connect a "
-        f"node when you're ready and watch your first loop go live.",
+        f"Your workspace <b>{workspace}</b> is ready, and your <b>{trial_hours}-hour free "
+        f"trial</b> has started, every feature unlocked, no card required. Connect a "
+        f"node and watch your first loop go live.",
         cta=("Open the console", origin or "#") if origin else None)
     return send(to, f"Welcome to {BRAND} — your trial has started", text, html)
 

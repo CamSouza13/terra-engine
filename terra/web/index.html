@@ -177,7 +177,8 @@ canvas{width:100%;display:block}
     <div class="side-scrim"></div>
     <div class="brand"><span class="dot" id="liveDot"></span>Terra</div>
     <nav class="nav" id="nav">
-      <button data-v="overview" class="active">Overview</button>
+      <button data-v="start" class="active">Get started</button>
+      <button data-v="overview">Overview</button>
       <button data-v="setup"><span class="n">1</span>Hardware</button>
       <button data-v="domain"><span class="n">2</span>Domain &amp; sensors</button>
       <button data-v="calib"><span class="n">3</span>Calibration &amp; data</button>
@@ -219,7 +220,15 @@ canvas{width:100%;display:block}
 
     <div class="banner" id="offlineBanner" style="display:none">Not connected to a node. Start the engine with <code>terra serve</code> and reload, or enter a node URL below.</div>
 
-    <section class="view active" id="v-overview">
+    <section class="view active" id="v-start">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div><div class="big" style="font-size:20px">Set up Terra</div><div class="hint" id="wizPlan">—</div></div>
+        <a class="btn sm" href="/pricing" id="wizUpgrade" style="display:none">Upgrade</a>
+      </div>
+      <div id="wizSteps" style="margin-top:14px"></div>
+    </section>
+
+    <section class="view" id="v-overview">
       <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
         <div><div class="big" id="ovHello" style="font-size:20px">Welcome back</div><div class="hint" id="ovPlan">—</div></div>
         <a class="btn sm" href="/pricing" id="ovUpgrade" style="display:none">Upgrade</a>
@@ -540,7 +549,8 @@ function drawChart(hist){const cv=$("#chart");if(!cv||!S.cfg||!hist||hist.length
   x.strokeStyle=ink;x.lineWidth=1.6;x.beginPath();vals.forEach((v,i)=>{const px=i/(vals.length-1)*w,py=h-((v-mn+pad)/((mx-mn)+2*pad))*h;i?x.lineTo(px,py):x.moveTo(px,py);});x.stroke();
   const ly=h-((vals[vals.length-1]-mn+pad)/((mx-mn)+2*pad))*h;x.fillStyle=ink;x.beginPath();x.arc(w-2,ly,2.5,0,6.28);x.fill();}
 
-const META={setup:["Node hardware","Live from the running node. Every value is computed by the engine and stored on disk."],
+const META={start:["Get started","Buy, configure, install, test, and run your node — step by step."],
+  setup:["Node hardware","Live from the running node. Every value is computed by the engine and stored on disk."],
   domain:["Domain & sensors","Reconfigure the running engine: domain, wired channels, and safety limits."],
   calib:["Calibration & data","Ingest real logs and run the real NUTS fit; results are applied to the engine."],
   dash:["Live dashboard","The running engine: real telemetry, the inferred hidden state, forecast, and events."],
@@ -550,7 +560,7 @@ const META={setup:["Node hardware","Live from the running node. Every value is c
   overview:["Overview","What you have running: nodes, calibration, alerts, and your plan."],
   order:["Order parts","Configure a node and request a build. We calibrate and ship it enrollment-ready."],
   support:["Support","Ask for help. Pro and Fleet get priority response."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();loadTeam();}if(v==="order"||v==="support")prefillEmail();}
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="start")loadStart();if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();loadTeam();}if(v==="order"||v==="support")prefillEmail();}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
@@ -561,7 +571,7 @@ function planAllows(f){if(!S.me)return true;const p=(S.me.user&&S.me.user.plan)|
 function applyPlan(){
   const ab=$("#acctBtn"),ll=$("#logoutLink");
   if(S.me&&S.me.auth_enforced){ab.style.display="inline-block";
-    if(S.me.authenticated){const p=S.me.user.plan;ab.textContent=p==="trial"?("Trial · "+S.me.trial_days_left+"d"):p.charAt(0).toUpperCase()+p.slice(1);ll.style.display="inline";}
+    if(S.me.authenticated){const p=S.me.user.plan;ab.textContent=p==="trial"?("Trial · "+(S.me.trial_hours_left!=null?S.me.trial_hours_left+"h":"")):p.charAt(0).toUpperCase()+p.slice(1);ll.style.display="inline";}
     else{ab.textContent="Sign in";ll.style.display="none";}
   }else{ab.style.display="none";ll.style.display="none";}
   const cal=planAllows("calibrate"),ctl=planAllows("control");
@@ -571,7 +581,7 @@ function applyPlan(){
 }
 async function initAuth(){
   if(S.verify){try{await post("/api/auth/verify",{token:S.verify});}catch(e){}}
-  try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();
+  try{S.me=await api("/api/auth/me");}catch(e){S.me=null;}applyPlan();prefillEmail();loadOverview();loadStart();
   const u=S.me&&S.me.user;
   if(S.me&&S.me.auth_enforced&&u){
     if(u.verified===false)$("#verifyBanner").style.display="block";
@@ -609,12 +619,88 @@ $("#btnDeleteWs").onclick=async()=>{const name=(S.me&&S.me.user&&S.me.user.works
 $("#acctBtn").onclick=()=>{if(S.me&&S.me.authenticated)location.href="/pricing";else showAuth();};
 $("#logoutLink").onclick=async()=>{try{await post("/api/auth/logout",{});}catch(e){}try{localStorage.removeItem("terra_token");}catch(e){}S.token=null;location.reload();};
 
+function cap(s){s=s||"";return s.charAt(0).toUpperCase()+s.slice(1);}
+function wstep(n,title,done,locked,body){
+  const mark=done?"✓":n, tag=locked?'<span class="hint" style="color:var(--sec)">Pro</span>':(done?'<span class="hint" style="color:var(--sec)">done</span>':'');
+  return `<div class="card" style="margin-bottom:12px${locked?';opacity:.75':''}">
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <span style="flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:1.5px solid ${done?'var(--ink)':'var(--line2)'};background:${done?'var(--ink)':'transparent'};color:var(--bg);font-size:12px;display:flex;align-items:center;justify-content:center">${mark}</span>
+      <div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center"><b>${title}</b>${tag}</div>${body}</div>
+    </div></div>`;
+}
+async function loadStart(){
+  let o={}, nodes=[];
+  try{o=await api("/api/overview");}catch(e){}
+  try{nodes=(await api("/api/fleet")).nodes||[];}catch(e){}
+  const plan=o.plan||"local", enforced=S.me&&S.me.auth_enforced;
+  const hrs=o.trial_hours_left||0;
+  $("#wizPlan").textContent="Plan: "+cap(plan)+(plan==="trial"?(" · trial ends in ~"+hrs+"h"):"");
+  $("#wizUpgrade").style.display=(enforced&&plan!=="pro"&&plan!=="fleet")?"inline-block":"none";
+  const canCtl=planAllows("control"), canMulti=planAllows("multi_node"), canCal=planAllows("calibrate");
+  const nNodes=o.nodes_total||nodes.length||0, live=o.nodes_live||nodes.filter(n=>!n.stale).length||0;
+  const boards=BOARDS.map(b=>`<option value="${b.k}">${b.k} — ${b.c}</option>`).join("");
+  const tiers=Object.keys(TIERS).map(t=>`<option value="${t}">${t}</option>`).join("");
+  const domains=Object.keys(DLABEL).map(d=>`<option value="${d}">${DLABEL[d]}</option>`).join("");
+  const base=S.base||location.origin;
+  const H=[];
+  H.push(wstep(1,"Buy a node",false,false,
+    `<div class="hint" style="margin-top:4px">Configure hardware and request a build — we calibrate and ship it enrollment-ready. This sends a request, not a charge.</div>
+     <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+       <select class="field" id="wBoard" style="min-width:180px">${boards}</select>
+       <select class="field" id="wTier" style="min-width:190px">${tiers}</select>
+       <input class="field" id="wQty" type="number" min="1" value="1" style="width:74px">
+       <input class="field" id="wEmail" placeholder="you@company.com" style="width:200px">
+       <button class="btn primary sm" id="wBuy">Request build</button>
+     </div><div class="hint" id="wBuyMsg" style="margin-top:6px"></div>`));
+  H.push(wstep(2,"Configure your system", nNodes>0||o.calibrated, false,
+    `<div class="hint" style="margin-top:4px">Pick the domain to model. Open full config for channels and safety limits.</div>
+     <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">
+       <select class="field" id="wDomain">${domains}</select>
+       <button class="btn sm" id="wApply">Apply</button>
+       <button class="btn sm" onclick="show('domain')">Channels &amp; safety</button>
+       <button class="btn sm" onclick="show('calib')">Calibrate${canCal?'':' · Pro'}</button>
+     </div><div class="hint" id="wCfgMsg" style="margin-top:6px"></div>`));
+  H.push(wstep(3,"Install &amp; enroll your node", nNodes>0, false,
+    `<div class="hint" style="margin-top:4px">Generate a one-time token, then run one command on the node (Raspberry Pi).</div>
+     <button class="btn primary sm" id="wTok" style="margin-top:8px">Generate enrollment token</button>
+     <div id="wTokOut" style="margin-top:8px"></div>`));
+  H.push(wstep(4,"Test the connection", live>0, false,
+    `<div class="hint" style="margin-top:4px">Confirm your node is reporting to the platform.</div>
+     <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" id="wTest">Check for my node</button>
+       <span class="hint" id="wTestMsg" style="align-self:center">${live>0?(live+" node(s) live"):(nNodes>0?"enrolled, waiting for data":"no node yet")}</span></div>`));
+  H.push(wstep(5,"Add & select nodes", nNodes>1, !canMulti&&nNodes>=1,
+    (canMulti||nNodes<1)?
+      `<div class="hint" style="margin-top:4px">You have ${nNodes} node(s). Add another the same way, or manage them in Fleet.</div>
+       <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" onclick="show('fleet')">Open Fleet</button></div>`
+      :`<div class="hint" style="margin-top:4px">Free plan is limited to one node. <a href="/pricing" style="color:var(--ink)">Upgrade</a> to add more.</div>`));
+  H.push(wstep(6,"Autonomous control", !!o.autonomy, !canCtl,
+    canCtl?
+      `<div class="hint" style="margin-top:4px">Let Terra enact control actions on the loop. Disable anytime.</div>
+       <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" id="wAutoOn">Enable</button><button class="btn sm" id="wAutoOff">Disable</button><span class="hint" id="wAutoMsg" style="align-self:center">${o.autonomy?"on":"off"}</span></div>`
+      :`<div class="hint" style="margin-top:4px">Closed-loop autonomy is a Pro feature. <a href="/pricing" style="color:var(--ink)">Upgrade</a> to enable.</div>`));
+  H.push(wstep(7,"Offline backup", false, !canCtl,
+    canCtl?
+      `<div class="hint" style="margin-top:4px">Run the node disconnected from its saved config; it syncs when back online.</div>
+       <code style="display:block;word-break:break-all;padding:8px;background:var(--fill);border-radius:8px;margin-top:8px">terra node --offline</code>`
+      :`<div class="hint" style="margin-top:4px">Offline mode is a Pro feature. <a href="/pricing" style="color:var(--ink)">Upgrade</a>.</div>`));
+  $("#wizSteps").innerHTML=H.join("");
+  const em=(S.me&&S.me.user&&S.me.user.email)||"";
+  if(em&&em!=="local"&&em!=="apikey"&&$("#wEmail"))$("#wEmail").value=em;
+  // handlers
+  const b=$("#wBuy");if(b)b.onclick=async()=>{const body={email:$("#wEmail").value.trim(),board:$("#wBoard").value,tier:$("#wTier").value,qty:parseInt($("#wQty").value||"1"),notes:"[wizard] domain "+($("#wDomain")?$("#wDomain").value:"")};if(!body.email.includes("@")){$("#wBuyMsg").textContent="Enter a valid email.";return;}try{const r=await post("/api/orders",body);$("#wBuyMsg").textContent="Request received (#"+r.order_id+"). We'll email a quote and lead time.";}catch(e){$("#wBuyMsg").textContent="Could not submit — try again.";}};
+  const ap=$("#wApply");if(ap)ap.onclick=async()=>{try{await post("/api/config",{domain:$("#wDomain").value});$("#wCfgMsg").textContent="Applied. Domain set to "+$("#wDomain").value+".";loadConfig();}catch(e){$("#wCfgMsg").textContent=e.status===403?"Your role can't change config.":"Could not apply.";}};
+  const tk=$("#wTok");if(tk)tk.onclick=async()=>{try{const r=await post("/api/nodes/enroll-token",{});const mins=Math.round((r.expires_in||3600)/60),dm=$("#wDomain")?$("#wDomain").value:"aquaculture";$("#wTokOut").innerHTML=`<div class="hint">One-time, expires in ${mins} min. Run on the node:</div><code style="display:block;word-break:break-all;padding:8px;background:var(--fill);border-radius:8px;margin-top:4px">terra node --enroll ${r.enroll_token} --server ${base} --name my-node --domain ${dm}</code>`;}catch(e){$("#wTokOut").innerHTML='<div class="hint">'+(e.status===402?'Free plan is limited to one node. <a href="/pricing" style="color:var(--ink)">Upgrade</a> to add more.':(e.status===403?"Only admins can enroll nodes.":"Could not generate token."))+'</div>';}};
+  const ts=$("#wTest");if(ts)ts.onclick=async()=>{$("#wTestMsg").textContent="checking…";try{const d=await api("/api/fleet");const l=(d.nodes||[]).filter(n=>!n.stale).length;$("#wTestMsg").textContent=l>0?(l+" node(s) live ✓"):"no live node yet — start the node and retry";if(l>0)setTimeout(loadStart,600);}catch(e){$("#wTestMsg").textContent="check failed";}};
+  const on=$("#wAutoOn"),off=$("#wAutoOff");
+  const setAuto=async(v)=>{try{await post("/api/control",{autonomy:v});$("#wAutoMsg").textContent=v?"on":"off";setTimeout(loadStart,400);}catch(e){$("#wAutoMsg").textContent=e.status===402?"Pro required":(e.status===403?"role can't":"failed");}};
+  if(on)on.onclick=()=>setAuto(true);if(off)off.onclick=()=>setAuto(false);
+}
 function mcard(label,val,sub){return `<div class="mc"><div class="l">${label}</div><div class="v" style="font-size:19px">${val}</div><div class="l" style="margin-top:3px;color:var(--muted)">${sub||""}</div></div>`;}
 async function loadOverview(){
   try{const o=await api("/api/overview");
     const plan=o.plan||"local";
     $("#ovHello").textContent=o.workspace?("Welcome, "+o.workspace):"Welcome back";
-    const trial=(plan==="trial"&&o.trial_days_left!=null)?(" · "+o.trial_days_left+" days left"):"";
+    const trial=(plan==="trial"&&o.trial_hours_left!=null)?(" · "+o.trial_hours_left+"h left"):"";
     $("#ovPlan").textContent="Plan: "+plan.charAt(0).toUpperCase()+plan.slice(1)+trial;
     const gated=S.me&&S.me.auth_enforced&&(plan==="free"||plan==="trial");
     $("#ovUpgrade").style.display=(S.me&&S.me.auth_enforced&&plan!=="pro"&&plan!=="fleet")?"inline-block":"none";
@@ -713,7 +799,7 @@ $("#tbClock").textContent=new Date().toLocaleTimeString([],{hour12:false});
 
 renderBoards();renderTiers();renderBOM();
 $("#nodeUrl").value=S.base||"";
-show("overview");
+show("start");
 initAuth();
 connect();
 </script>

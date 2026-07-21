@@ -74,6 +74,9 @@ jobs:
       - name: Run config-handoff tests
         run: python tests/test_handoff.py
 
+      - name: Run plan-gating tests
+        run: python tests/test_gating.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 
