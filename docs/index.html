@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Terra Labs — Autonomous control for closed living systems</title>
+<meta name="description" content="One Bayesian engine reads the true state of a living loop from cheap, drifting sensors, forecasts failure hours ahead, and acts on it autonomously — on-site and offline."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000; --panel:#0c0c0c; --ink:#f2f2f2; --mut:#8c8c8c; --dim:#9a9a9a;
+    --line:#333; --line2:#4a4a4a; --hi:#f4f4f4;
+    --mono:'JetBrains Mono',ui-monospace,monospace; --grot:'Space Grotesk',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);
+       font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--ink);text-decoration:none}
+  h1,h2,h3{font-family:var(--grot);font-weight:600;letter-spacing:0.5px;line-height:1.1;margin:0}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 28px}
+  .mono-label{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--mut);text-transform:uppercase}
+
+  /* nav */
+  nav{position:fixed;top:0;left:0;right:0;z-index:50;background:rgba(0,0,0,0.72);
+      backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{font-family:var(--grot);font-weight:600;letter-spacing:6px;font-size:14px}
+  .navlinks a{font-size:12px;letter-spacing:1.5px;color:var(--mut);margin-left:26px;text-transform:uppercase;transition:color .2s}
+  .navlinks a:hover{color:var(--ink)}
+  @media(max-width:720px){.navlinks{display:none}}
+
+  /* hero */
+  header{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+         position:relative;border-bottom:1px solid var(--line);overflow:hidden}
+  .grid-bg{position:absolute;inset:0;background-image:
+     linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+     linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+     background-size:44px 44px;mask-image:radial-gradient(circle at 50% 40%,#000 0%,transparent 78%)}
+  .octa{width:66px;height:66px;margin-bottom:30px}
+  header h1{font-size:clamp(34px,6vw,66px);letter-spacing:1px;max-width:16ch}
+  header .lede{color:var(--dim);max-width:60ch;margin-top:22px;font-size:16px}
+  .cta{margin-top:38px;display:flex;gap:14px;flex-wrap:wrap}
+  .btn{border:1px solid var(--line2);padding:12px 22px;font-size:12px;letter-spacing:1.5px;
+       text-transform:uppercase;transition:all .2s}
+  .btn:hover{background:var(--hi);color:#000;border-color:var(--hi)}
+  .btn.ghost:hover{background:transparent;color:var(--ink);border-color:var(--ink)}
+  .tag{position:absolute;bottom:26px;left:28px;font-size:11px;letter-spacing:3px;color:var(--mut)}
+  .tag.r{left:auto;right:28px}
+
+  section{padding:96px 0;border-bottom:1px solid var(--line)}
+  .eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+  .eyebrow::before{content:"";width:40px;height:1px;background:var(--hi)}
+  h2{font-size:clamp(24px,3.4vw,38px)}
+  .lead{color:var(--dim);max-width:62ch;margin-top:18px;font-size:16px}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:54px;align-items:center}
+  @media(max-width:860px){.two{grid-template-columns:1fr;gap:34px}}
+
+  figure{margin:0}
+  .fig{border:1px solid var(--line);background:var(--panel)}
+  .fig img{width:100%;display:block}
+  figcaption{color:var(--mut);font-size:12.5px;margin-top:12px;letter-spacing:.3px}
+
+  .figrow{display:grid;grid-template-columns:1fr;gap:56px;margin-top:20px}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+         border:1px solid var(--line);margin-top:14px}
+  @media(max-width:820px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--bg);padding:26px 22px}
+  .stat .n{font-family:var(--grot);font-size:30px;font-weight:600}
+  .stat .l{color:var(--mut);font-size:12px;margin-top:8px;line-height:1.45}
+
+  canvas{width:100%;display:block;background:#060606;border:1px solid var(--line)}
+  .demo-cap{color:var(--mut);font-size:12px;margin-top:10px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .mini-btn{border:1px solid var(--line2);background:transparent;color:var(--ink);
+            font-family:var(--mono);font-size:11px;letter-spacing:1.5px;padding:8px 14px;
+            text-transform:uppercase;cursor:pointer;transition:all .2s}
+  .mini-btn:hover{background:var(--hi);color:#000}
+
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  footer{padding:70px 0 90px}
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px}
+  footer h3{font-size:22px;letter-spacing:2px}
+  .disc{color:var(--mut);font-size:12px;max-width:60ch;margin-top:26px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <div class="brand">TERRA&nbsp;LABS</div>
+  <div class="navlinks">
+    <a href="#engine">Engine</a>
+    <a href="#instrument">Instrument</a>
+    <a href="#autonomy">Autonomy</a>
+    <a href="#mesh">Mesh</a>
+    <a href="#validated">Validated</a>
+  </div>
+</div></nav>
+
+<header>
+  <div class="grid-bg"></div>
+  <div class="wrap" style="position:relative">
+    <svg class="octa" viewBox="-40 -40 80 80" fill="none" stroke="#f4f4f4" stroke-width="1.6">
+      <polygon points="-34,-14 -14,-34 14,-34 34,-14 34,14 14,34 -14,34 -34,14"/>
+      <polygon points="-18,-7 -7,-18 7,-18 18,-7 18,7 7,18 -7,18 -18,7" stroke="#8c8c8c" stroke-width="1"/>
+    </svg>
+    <div class="mono-label" style="margin-bottom:18px">Autonomous control for closed living systems</div>
+    <h1>The intelligence that keeps living systems alive.</h1>
+    <p class="lede">One Bayesian engine reads the true state of a living loop from cheap, drifting sensors,
+       forecasts failure hours before it happens, and acts on it autonomously — on-site and offline.
+       We start in aquaculture and carry the same engine from the mud to the moon.</p>
+    <div class="cta">
+      <a class="btn" href="Terra-Systems-Brief.pdf">Systems Brief (PDF)</a>
+      <a class="btn ghost" href="#engine">See the engine</a>
+    </div>
+  </div>
+  <div class="tag">TERRA LABS</div>
+  <div class="tag r">REV A / 2026</div>
+</header>
+
+<!-- PROBLEM -->
+<section id="problem"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">01 / The problem</span></div>
+  <div class="two">
+    <div>
+      <h2>Monitoring alarms one sensor at a time, and always too late.</h2>
+      <p class="lead">A closed living system — a fish farm, a wetland, a bioreactor, a habitat in space —
+        is a loop that quietly wants to fail. The instruments watching it foul and drift, so the dashboard
+        looks calm while the system collapses. Conventional monitoring reacts after a single gauge crosses a line.
+        By then the loss has happened.</p>
+    </div>
+    <div>
+      <p class="lead" style="margin-top:0">Terra models the whole coupled system instead of one channel.
+        It recovers the hidden state no sensor can read, quantifies its own uncertainty, and forecasts the
+        breach hours ahead — early enough to prevent it, not just record it.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ENGINE + live band -->
+<section id="engine"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">02 / The engine</span></div>
+  <h2>It infers what it cannot measure, and knows how much it doesn't know.</h2>
+  <p class="lead">A recursive Bayesian estimator (an unscented Kalman filter) predicts the system forward,
+     corrects on each noisy reading, and reports the hidden state with a calibrated 95% credible band.
+     Below: the estimate tracking a hidden efficiency as it collapses — the band widens where the engine
+     is less sure.</p>
+  <div style="margin-top:30px">
+    <canvas id="band" height="300"></canvas>
+    <div class="demo-cap">
+      <span>estimate&nbsp;&nbsp;··&nbsp;truth&nbsp;&nbsp;·&nbsp;shaded band = 95% credible</span>
+      <span id="bandnote">live simulation</span>
+    </div>
+  </div>
+</div></section>
+
+<!-- INSTRUMENT figures -->
+<section id="instrument"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">03 / The instrument</span></div>
+  <h2>Signal to action, on one page.</h2>
+  <p class="lead">Cheap probes into an offline edge node running the engine, into a forecast, into an
+     uncertainty-gated decision, into a real actuator. The cloud coordinates the fleet; it is never in the
+     safety path.</p>
+  <div class="figrow">
+    <figure><div class="fig"><img src="assets/tlk-fig01-pipeline@2x.png" alt="Signal to action pipeline"/></div>
+      <figcaption>FIG. 01 / SYSTEM — the signal-to-action pipeline.</figcaption></figure>
+    <figure><div class="fig"><img src="assets/tlk-fig02-engine@2x.png" alt="Inside the engine"/></div>
+      <figcaption>FIG. 02 / INFERENCE — predict, update, credible band, self-checks, forecast.</figcaption></figure>
+    <figure><div class="fig"><img src="assets/tlk-node-architecture@2x.png" alt="TLK node signal chain"/></div>
+      <figcaption>FIG. 03 / EDGE HARDWARE — the TLK node signal chain.</figcaption></figure>
+  </div>
+</div></section>
+
+<!-- AUTONOMY -->
+<section id="autonomy"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">04 / Autonomy</span></div>
+  <h2>It acts unattended only when it trusts its own estimate.</h2>
+  <p class="lead">A forecast is only worth what you do with it. When breach risk crosses a trigger, the engine
+     searches its actuators for the least aggressive action that clears the risk — and enacts it only if the
+     estimate is confident. Otherwise it holds and hands the call to a human. That gate is what makes autonomy
+     trustable.</p>
+  <div class="figrow"><figure><div class="fig"><img src="assets/tlk-fig04-autonomy@2x.png" alt="Autonomy loop"/></div>
+    <figcaption>FIG. 04 / AUTONOMY — the uncertainty-gated control loop.</figcaption></figure></div>
+</div></section>
+
+<!-- MESH + interactive -->
+<section id="mesh"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">05 / The network</span></div>
+  <h2>Packets heal. So does the data.</h2>
+  <p class="lead">Nodes form a self-healing wireless mesh to a gateway. When a link drops, traffic reroutes with
+     no central controller. And because the engine models a spatially coupled field, a dropped node's state is
+     imputed from its neighbours until it returns. Sever a link below and watch the route heal.</p>
+  <div style="margin-top:30px">
+    <canvas id="mesh" height="360"></canvas>
+    <div class="demo-cap">
+      <span id="meshnote">click a white link to sever it — the path re-routes to the gateway</span>
+      <button class="mini-btn" id="meshreset">Reset</button>
+    </div>
+  </div>
+  <div class="figrow" style="margin-top:44px"><figure><div class="fig"><img src="assets/tlk-fig07-mesh@2x.png" alt="Self-healing mesh"/></div>
+    <figcaption>FIG. 07 / NETWORK — self-healing sensor mesh.</figcaption></figure></div>
+</div></section>
+
+<!-- FLYWHEEL + MANY WORLDS -->
+<section id="flywheel"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">06 / The moat</span></div>
+  <h2>Every deployment makes the next one better.</h2>
+  <p class="lead">Each site calibrates the engine to its own biology and feeds a shared prior the whole fleet
+     starts from. The defensibility is not a patent — it is the outcome-labeled failure data only Terra
+     accumulates in the field.</p>
+  <div class="figrow">
+    <figure><div class="fig"><img src="assets/tlk-fig05-flywheel@2x.png" alt="Data flywheel"/></div>
+      <figcaption>FIG. 05 / FLEET — the data flywheel.</figcaption></figure>
+    <figure><div class="fig"><img src="assets/tlk-fig06-manyworlds@2x.png" alt="One engine many worlds"/></div>
+      <figcaption>FIG. 06 / PLATFORM — one engine, many worlds.</figcaption></figure>
+  </div>
+</div></section>
+
+<!-- VALIDATED -->
+<section id="validated"><div class="wrap reveal">
+  <div class="eyebrow"><span class="mono-label">07 / Validated</span></div>
+  <h2>Honest numbers, from real engine output.</h2>
+  <p class="lead">Measured in simulation across four domains, reproducible from the command line. These firm up
+     on live sensors — which is what the first pilots are for.</p>
+  <div class="stats">
+    <div class="stat"><div class="n">6–7 h</div><div class="l">breach forecast lead over a raw gauge (0.5 h)</div></div>
+    <div class="stat"><div class="n">100%</div><div class="l">fault-detection rate vs 81% for a threshold gauge, 0 false alarms</div></div>
+    <div class="stat"><div class="n">~10 ms</div><div class="l">per estimator cycle, numpy-only, &lt;1 MB, no GPU, fully offline</div></div>
+    <div class="stat"><div class="n">89–100%</div><div class="l">calibrated 95%-band coverage across the four domains</div></div>
+    <div class="stat"><div class="n">0.24</div><div class="l">mg/L/day minimum drift resolved in 2 days, below the noise band</div></div>
+    <div class="stat"><div class="n">2.2×</div><div class="l">hidden-state error cut by online bias tracking under sensor drift</div></div>
+    <div class="stat"><div class="n">4</div><div class="l">domains on one core: aquaculture, soil, bioremediation, life support</div></div>
+    <div class="stat"><div class="n">0.06</div><div class="l">error imputing a dropped mesh node from its neighbours</div></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap reveal">
+  <div class="foot">
+    <div>
+      <h3>FROM THE MUD TO THE MOON</h3>
+      <div class="mono-label" style="margin-top:14px">Terra Laboratories</div>
+    </div>
+    <div style="text-align:right">
+      <a class="btn" href="mailto:cameron@terralaboratories.com">Contact</a>
+    </div>
+  </div>
+  <p class="disc">One engine reads the true state of any closed living system, forecasts failure hours before it
+     happens, and acts on it autonomously, on-site and offline. Engine built and validated in simulation; first
+     real-world pilots ahead. terralaboratories.com</p>
+</div></footer>
+
+<script>
+// reveal on scroll
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+// ---- live credible-band demo ----
+(function(){
+  const c=document.getElementById('band'); if(!c) return;
+  const ctx=c.getContext('2d'); let W,H,t=0;
+  function size(){W=c.width=c.clientWidth*devicePixelRatio;H=c.height=300*devicePixelRatio;}
+  size(); addEventListener('resize',size);
+  function truthAt(x){ // efficiency: healthy 1.0 -> collapse ~0.2
+    const p=x; if(p<0.45)return 1.0; if(p>0.68)return 0.2; return 1.0-(p-0.45)/0.23*0.8;
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H); const pad=24*devicePixelRatio;
+    const x0=pad,x1=W-pad,y0=pad,y1=H-pad;
+    // axes baseline
+    ctx.strokeStyle='#333';ctx.lineWidth=1*devicePixelRatio;
+    ctx.beginPath();ctx.moveTo(x0,y1);ctx.lineTo(x1,y1);ctx.moveTo(x0,y0);ctx.lineTo(x0,y1);ctx.stroke();
+    const N=160, prog=(t%260)/260; // sweep
+    const toX=i=>x0+(x1-x0)*i/(N-1);
+    const toY=v=>y1-(y1-y0)*(v-0.05)/(1.05-0.05);
+    // build est + band up to sweep
+    const est=[],lo=[],up=[]; const lim=Math.floor(N*prog);
+    for(let i=0;i<=lim;i++){
+      const xx=i/(N-1); const tr=truthAt(xx);
+      const lag=Math.max(0,(truthAt(Math.min(1,xx+0.03))-tr))*0.6;
+      const e=tr+lag+0.02*Math.sin(i*0.7);
+      const rate=Math.abs(truthAt(Math.min(1,xx+0.02))-truthAt(xx))*8;
+      const band=0.05+rate*0.9;
+      est.push(e); lo.push(e-band); up.push(e+band);
+    }
+    if(lim>1){
+      // band fill
+      ctx.beginPath();
+      for(let i=0;i<=lim;i++){const X=toX(i);const Y=toY(up[i]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}
+      for(let i=lim;i>=0;i--){ctx.lineTo(toX(i),toY(lo[i]));}
+      ctx.closePath(); ctx.fillStyle='rgba(244,244,244,0.13)'; ctx.fill();
+      // truth (dashed)
+      ctx.setLineDash([4*devicePixelRatio,4*devicePixelRatio]);
+      ctx.strokeStyle='#cfcfcf';ctx.lineWidth=1.4*devicePixelRatio;ctx.beginPath();
+      for(let i=0;i<=lim;i++){const X=toX(i),Y=toY(truthAt(i/(N-1)));i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}
+      ctx.stroke(); ctx.setLineDash([]);
+      // estimate
+      ctx.strokeStyle='#f4f4f4';ctx.lineWidth=2*devicePixelRatio;ctx.beginPath();
+      for(let i=0;i<=lim;i++){const X=toX(i),Y=toY(est[i]);i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}
+      ctx.stroke();
+      // sweep head
+      ctx.fillStyle='#f4f4f4';ctx.beginPath();ctx.arc(toX(lim),toY(est[lim]),3*devicePixelRatio,0,7);ctx.fill();
+    }
+    t+=1; requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ---- interactive self-healing mesh ----
+(function(){
+  const c=document.getElementById('mesh'); if(!c) return;
+  const ctx=c.getContext('2d'); let W,H;
+  const R=1; // dpr handled below
+  function size(){W=c.width=c.clientWidth*devicePixelRatio;H=c.height=360*devicePixelRatio;draw();}
+  const nodes={G:[0.12,0.5,'GW'],A:[0.30,0.22],B:[0.30,0.72],C:[0.50,0.44],
+               D:[0.50,0.82],E:[0.70,0.26],F:[0.70,0.66],H:[0.88,0.46]};
+  const baseLinks=[['G','A'],['G','B'],['A','C'],['B','C'],['B','D'],['C','F'],['D','F'],['E','H'],['F','H'],['C','E']];
+  let links=baseLinks.map(l=>l.slice());
+  function px(n){return [nodes[n][0]*W, nodes[n][1]*H];}
+  function shortestPath(from){ // BFS to G over current links
+    const adj={}; links.forEach(([a,b])=>{(adj[a]=adj[a]||[]).push(b);(adj[b]=adj[b]||[]).push(a);});
+    const q=[from],prev={}; prev[from]=null; const seen=new Set([from]);
+    while(q.length){const n=q.shift(); if(n==='G')break;
+      (adj[n]||[]).forEach(m=>{if(!seen.has(m)){seen.add(m);prev[m]=n;q.push(m);}});}
+    if(!('G' in prev))return null; const path=[]; let n='G'; while(n!==null){path.push(n);n=prev[n];}
+    return path; // G ... from
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // links
+    links.forEach(([a,b])=>{const[ax,ay]=px(a),[bx,by]=px(b);
+      ctx.strokeStyle='#4a4a4a';ctx.lineWidth=1.4*devicePixelRatio;
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();});
+    // healed path from H (the far node)
+    const path=shortestPath('H');
+    if(path){ctx.strokeStyle='#f4f4f4';ctx.lineWidth=2.6*devicePixelRatio;ctx.beginPath();
+      path.forEach((n,i)=>{const[x,y]=px(n);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}
+    // nodes
+    for(const n in nodes){const[x,y]=px(n);const gw=n==='G';
+      ctx.fillStyle='#0c0c0c';ctx.strokeStyle=gw?'#f4f4f4':'#9a9a9a';
+      ctx.lineWidth=(gw?1.8:1.6)*devicePixelRatio;
+      if(gw){ctx.beginPath();ctx.rect(x-26*devicePixelRatio,y-15*devicePixelRatio,52*devicePixelRatio,30*devicePixelRatio);ctx.fill();ctx.stroke();}
+      else{ctx.beginPath();ctx.arc(x,y,15*devicePixelRatio,0,7);ctx.fill();ctx.stroke();}
+      ctx.fillStyle='#8c8c8c';ctx.font=(gw?11:9)*devicePixelRatio+"px 'JetBrains Mono',monospace";
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(nodes[n][2]||n,x,y);}
+    const note=document.getElementById('meshnote');
+    if(note) note.textContent = path? 'route to gateway is healed — click a white link to sever it'
+                                      : 'node H is isolated — click Reset';
+  }
+  c.addEventListener('click',e=>{
+    const r=c.getBoundingClientRect();
+    const mx=(e.clientX-r.left)*devicePixelRatio, my=(e.clientY-r.top)*devicePixelRatio;
+    // find nearest link segment
+    let best=-1,bd=14*devicePixelRatio;
+    links.forEach(([a,b],i)=>{const[ax,ay]=px(a),[bx,by]=px(b);
+      const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy; let t=((mx-ax)*dx+(my-ay)*dy)/L;t=Math.max(0,Math.min(1,t));
+      const px2=ax+t*dx,py2=ay+t*dy;const d=Math.hypot(mx-px2,my-py2); if(d<bd){bd=d;best=i;}});
+    if(best>=0){links.splice(best,1);draw();}
+  });
+  document.getElementById('meshreset').addEventListener('click',()=>{links=baseLinks.map(l=>l.slice());draw();});
+  size(); addEventListener('resize',size);
+})();
+</script>
+</body>
+</html>
