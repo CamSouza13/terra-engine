@@ -192,7 +192,11 @@ class Platform:
         self._build_engine()
         self._load_initial_source()
         self.running = True
-        threading.Thread(target=self._loop, daemon=True).start()
+        # On serverless (Vercel), each request is a short-lived invocation with no
+        # persistent process, so the continuous engine loop is skipped; state is
+        # computed on demand instead. Set TERRA_SERVERLESS=1 to enable that mode.
+        if os.environ.get("TERRA_SERVERLESS") != "1":
+            threading.Thread(target=self._loop, daemon=True).start()
 
     # ---- engine / config ----
     def _build_engine(self):

@@ -1,0 +1,8 @@
+docs/
+tests/
+scripts/
+deploy/
+.github/
+*.md
+Dockerfile
+fly.toml
