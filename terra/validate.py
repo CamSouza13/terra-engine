@@ -29,6 +29,7 @@ class ValidationReport:
     hidden_coverage: float           # fraction of truth inside the 95% band
     mean_nis_dof: float
     lead: dict = field(default_factory=dict)
+    reliability: dict = field(default_factory=dict)  # nominal -> empirical coverage
 
     def summary(self) -> dict:
         return {
@@ -39,6 +40,7 @@ class ValidationReport:
             "hidden_coverage": self.hidden_coverage,
             "mean_nis_dof": self.mean_nis_dof,
             "lead": self.lead,
+            "reliability": self.reliability,
         }
 
     def print_report(self) -> None:
@@ -46,6 +48,10 @@ class ValidationReport:
         print(f"  hidden-state RMSE   : {self.hidden_rmse:.3f}")
         print(f"  hidden-state bias   : {self.hidden_bias:+.3f}")
         print(f"  95% band coverage   : {self.hidden_coverage:.0%}")
+        if self.reliability:
+            curve = "  ".join(f"{int(k*100)}->{v:.0%}"
+                              for k, v in sorted(self.reliability.items()))
+            print(f"  reliability (nom->emp): {curve}")
         print(f"  mean NIS/dof        : {self.mean_nis_dof:.2f}")
         for name, d in self.lead.items():
             el = d["engine_lead"]
@@ -81,6 +87,15 @@ def run_validation(spec, sim, config: EngineConfig | None = None) -> ValidationR
     up = a_est + 1.96 * a_std
     coverage = float(np.mean((a_true >= lo) & (a_true <= up)))
 
+    # reliability curve: empirical coverage of each nominal credible level. A
+    # well-calibrated engine sits near the diagonal (nominal ~ empirical).
+    _z = {0.5: 0.674, 0.8: 1.282, 0.9: 1.645, 0.95: 1.960, 0.99: 2.576}
+    safe_std = np.where(a_std > 0, a_std, 1e-9)
+    reliability = {
+        lvl: float(np.mean(np.abs(a_est - a_true) <= z * safe_std))
+        for lvl, z in _z.items()
+    }
+
     # engine alert time per safety target (first forecast ALERT naming it)
     engine_alert: dict = {s.name: None for s in spec.safety}
     for t_ev, level, msg in eng.events:
@@ -105,4 +120,5 @@ def run_validation(spec, sim, config: EngineConfig | None = None) -> ValidationR
     return ValidationReport(
         domain=spec.name, n_steps=len(times), hidden_rmse=rmse,
         hidden_bias=bias, hidden_coverage=coverage,
-        mean_nis_dof=float(np.mean(nis)) if nis else float("nan"), lead=lead)
+        mean_nis_dof=float(np.mean(nis)) if nis else float("nan"), lead=lead,
+        reliability=reliability)

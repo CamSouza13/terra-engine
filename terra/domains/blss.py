@@ -27,6 +27,10 @@ class BLSSParams:
     O2_amb: float = 20.9
     scrub_cap: float = 260.0   # backup CO2 scrubber capacity, ppm/h at full
     o2_cap: float = 0.28       # backup O2 makeup capacity, %/h at full
+    gravity: float = 1.0       # 0..1 scale on buoyancy-driven cabin mixing.
+                               # Microgravity (~0.05) removes natural convection,
+                               # so passive gas exchange collapses and CO2/O2
+                               # gradients build far faster. 1.0 = Earth.
 
 
 def _unpack(u):
@@ -42,9 +46,10 @@ def deriv(x, u, p: BLSSParams):
     CO2 = max(CO2, 0.0); act = max(act, 0.0)
     light, backup = _unpack(u)
     photo = act * p.Pmax * light * CO2 / (p.Kco2 + CO2)
+    mix = p.leak * p.gravity
     return np.array([
-        p.crew_co2 - photo + p.leak * (p.CO2_amb - CO2) - backup * p.scrub_cap,
-        -p.crew_o2 + p.k_o2 * photo + p.leak * (p.O2_amb - O2) + backup * p.o2_cap,
+        p.crew_co2 - photo + mix * (p.CO2_amb - CO2) - backup * p.scrub_cap,
+        -p.crew_o2 + p.k_o2 * photo + mix * (p.O2_amb - O2) + backup * p.o2_cap,
         0.0,
     ])
 
@@ -53,15 +58,16 @@ def deriv_batch(X, u, p: BLSSParams):
     CO2 = np.clip(X[:, 0], 0, None); O2 = X[:, 1]; act = np.clip(X[:, 2], 0, None)
     light, backup = _unpack(u)
     photo = act * p.Pmax * light * CO2 / (p.Kco2 + CO2)
+    mix = p.leak * p.gravity
     d = np.empty_like(X)
-    d[:, 0] = p.crew_co2 - photo + p.leak * (p.CO2_amb - CO2) - backup * p.scrub_cap
-    d[:, 1] = -p.crew_o2 + p.k_o2 * photo + p.leak * (p.O2_amb - O2) + backup * p.o2_cap
+    d[:, 0] = p.crew_co2 - photo + mix * (p.CO2_amb - CO2) - backup * p.scrub_cap
+    d[:, 1] = -p.crew_o2 + p.k_o2 * photo + mix * (p.O2_amb - O2) + backup * p.o2_cap
     d[:, 2] = 0.0
     return d
 
 
-def build_spec() -> SystemSpec:
-    p = BLSSParams()
+def build_spec(gravity: float = 1.0) -> SystemSpec:
+    p = BLSSParams(gravity=gravity)
     safety = [
         SafetyTarget("cabin O2", lambda X, p, e: X[1],
                      limit=19.5, direction="<", units="%"),
@@ -85,8 +91,8 @@ def build_spec() -> SystemSpec:
 
 
 def simulate(hours=48.0, seed=3, available=None, fault=True,
-             intervene_t=None, intervene_u=None):
-    spec = build_spec()
+             intervene_t=None, intervene_u=None, gravity=1.0):
+    spec = build_spec(gravity=gravity)
     dt = 1.0 / 60.0
 
     def u_of_t(t):

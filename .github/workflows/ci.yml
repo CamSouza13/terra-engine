@@ -77,6 +77,18 @@ jobs:
       - name: Run plan-gating tests
         run: python tests/test_gating.py
 
+      - name: Run online bias-compensation tests
+        run: python tests/test_bias.py
+
+      - name: Run analysis-toolkit tests
+        run: python tests/test_analysis.py
+
+      - name: Run fleet prior-pooling tests
+        run: python tests/test_fleet.py
+
+      - name: Run microgravity variant tests
+        run: python tests/test_microgravity.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

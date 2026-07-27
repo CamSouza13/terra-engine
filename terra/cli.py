@@ -54,6 +54,44 @@ def cmd_validate(args) -> int:
     return 0
 
 
+def cmd_analyze(args) -> int:
+    from terra import analysis
+    mod = _get_domain(args.domain)
+    spec, sim = mod.simulate()
+    if args.kind == "degradation":
+        print(f"Graceful degradation — {spec.name}")
+        for r in analysis.degradation_sweep(spec, sim):
+            print(f"  {r['n_channels']} ch {str(r['active']):32s} "
+                  f"RMSE {r['rmse']:.3f}  cover {r['coverage']:.0%}")
+    elif args.kind == "drift":
+        d = analysis.drift_detectability(spec, args.channel or list(spec.channels)[0])
+        print(f"Drift detectability — {spec.name} / {d['channel']} "
+              f"(noise {d['sigma']:.3g}, process wander {d['process_wander']:.3g})")
+        for T, w in d["windows"].items():
+            print(f"  {T:4d} h window: min recoverable drift "
+                  f"{w['min_rate_per_day']:.3g} /day")
+    elif args.kind == "bench":
+        b = analysis.edge_benchmark(spec, sim)
+        print(f"Edge benchmark — {spec.name}: {b['ms_per_step']:.3f} ms/step, "
+              f"{b['steps_per_s']:.0f} steps/s, peak {b['peak_mem_mb']:.2f} MB, "
+              f"state {b['state_dim']}, {b['channels']} channels")
+    elif args.kind == "alerts":
+        q = analysis.alert_quality(mod)
+        lead = q["engine_mean_lead_h"]
+        lead_s = f"{lead:.1f} h" if lead is not None else "n/a"
+        print(f"Alert quality — {spec.name} ({q['seeds']} seeds): "
+              f"engine detect {q['engine_detect_rate']:.0%} vs gauge "
+              f"{q['baseline_detect_rate']:.0%}; mean lead {lead_s}; "
+              f"false alarms engine {q['engine_false_alarms']} / "
+              f"gauge {q['baseline_false_alarms']}")
+    elif args.kind == "roi":
+        r = analysis.roi_distribution()
+        p = r["percentiles"]
+        print(f"Annual value ($) — mean {r['mean']:,.0f}; "
+              f"P10 {p[10]:,.0f}  P50 {p[50]:,.0f}  P90 {p[90]:,.0f}")
+    return 0
+
+
 def cmd_calibrate(args) -> int:
     try:
         from terra.calibrate import HAS_JAX
@@ -147,6 +185,12 @@ def build_parser() -> argparse.ArgumentParser:
     v = sub.add_parser("validate", help="score engine vs ground truth + baseline")
     v.add_argument("--domain", default="aquaculture")
     v.set_defaults(func=cmd_validate)
+
+    a = sub.add_parser("analyze", help="robustness / drift / edge-cost / value analyses")
+    a.add_argument("kind", choices=["degradation", "drift", "bench", "alerts", "roi"])
+    a.add_argument("--domain", default="aquaculture")
+    a.add_argument("--channel", default=None, help="channel for drift analysis")
+    a.set_defaults(func=cmd_analyze)
 
     c = sub.add_parser("calibrate", help="offline Bayesian fit (optional extra)")
     c.add_argument("--domain", default="aquaculture")
