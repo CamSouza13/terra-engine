@@ -110,6 +110,7 @@ class Estimate:
     hidden_std: float
     budget_residual: float | None
     risks: dict[str, dict]            # target name -> {p, t_cross, level}
+    sensor_bias: dict[str, float] = field(default_factory=dict)  # est. drift/offset
 
 
 # ---- the engine ---------------------------------------------------------------
@@ -125,6 +126,17 @@ class EngineConfig:
     outlier_sigma: float | None = None   # gate |innovation| > k·std; None = off
     param_draws: list | None = None      # posterior param samples to marginalise
                                          # the forecast over (calibration output)
+    process_inflation: float = 3.0       # scale process-noise covariance Q so the
+                                         # credible bands are calibrated (empirical
+                                         # coverage ~ nominal 95%); 1.0 = raw model.
+                                         # 3.0 chosen from the validation sweep.
+    track_bias: bool = False             # online per-channel sensor-bias tracking:
+                                         # attribute the slow, persistent part of a
+                                         # channel's innovation to a drifting sensor
+                                         # and correct it before the state update.
+    bias_tau_h: float = 24.0             # time constant (h) of the bias tracker;
+                                         # long enough that real dynamics stay in
+                                         # the state, not the bias.
 
 
 class TerraEngine:
@@ -136,7 +148,8 @@ class TerraEngine:
         self.ukf = UnscentedKalmanFilter(
             dim_x=n,
             fx=self._fx,
-            Q=np.diag(np.asarray(spec.process_std, float) ** 2),
+            Q=np.diag(np.asarray(spec.process_std, float) ** 2)
+              * float(self.cfg.process_inflation),
             alpha=1e-3, beta=2.0,
         )
         self.ukf.x = np.array(spec.x0, float)  # type: ignore[assignment]
@@ -146,6 +159,7 @@ class TerraEngine:
         self.events: list[tuple[float, str, str]] = []
         self._announced: set[str] = set()
         self._unhealthy_run = 0
+        self._bias: dict[str, float] = {c: 0.0 for c in spec.channels}
 
     # dynamics hook for the UKF (uses the input set at each step)
     def _fx(self, x: np.ndarray, dt: float) -> np.ndarray:
@@ -168,6 +182,18 @@ class TerraEngine:
         used = [c for c in self.spec.channels
                 if c in measurements and measurements[c] is not None
                 and np.isfinite(measurements[c])]
+        # online sensor-bias tracking: attribute the slow, persistent part of a
+        # channel's innovation to a drifting/offset sensor and subtract it before
+        # the state update, so a fouling probe doesn't drag the state estimate.
+        measurements = dict(measurements)
+        if self.cfg.track_bias and used:
+            xp = self.ukf.x
+            g = min(dt / max(self.cfg.bias_tau_h, 1e-6), 1.0)   # slow gain
+            for c in used:
+                ch = self.spec.channels[c]
+                resid = measurements[c] - ch.obs(xp) - self._bias[c]
+                self._bias[c] += g * resid
+                measurements[c] = measurements[c] - self._bias[c]
         # robust gate: drop channels whose innovation is implausibly large
         # (sensor spike / dropout glitch), judged against the predicted
         # innovation std. Off by default (outlier_sigma=None).
@@ -204,7 +230,8 @@ class TerraEngine:
 
         est = Estimate(t=t, x=x, P=P, used_channels=used, nis=self.ukf.nis,
                        hidden=hidden, hidden_std=hidden_std,
-                       budget_residual=budget, risks=risks)
+                       budget_residual=budget, risks=risks,
+                       sensor_bias=(dict(self._bias) if self.cfg.track_bias else {}))
         self.history.append(est)
         self._log(est)
         return est
