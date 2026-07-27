@@ -132,6 +132,12 @@ jobs:
           JAX_ENABLE_X64: "1"
         run: python scripts/run_calibrate.py --hours 12 --warmup 80 --samples 80
 
+      - name: Smoke-test the end-to-end data flywheel
+        env:
+          JAX_PLATFORMS: cpu
+          JAX_ENABLE_X64: "1"
+        run: python scripts/run_flywheel.py --sites 2 --warmup 40 --samples 40
+
   quality:
     name: Quality (ruff, mypy, coverage)
     runs-on: ubuntu-latest
