@@ -89,6 +89,12 @@ jobs:
       - name: Run microgravity variant tests
         run: python tests/test_microgravity.py
 
+      - name: Run control-safety tests (CUSUM + uncertainty gate)
+        run: python tests/test_control_safety.py
+
+      - name: Run flywheel tests (backtest + fleet-pool)
+        run: python tests/test_flywheel.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

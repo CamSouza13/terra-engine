@@ -200,7 +200,7 @@ class Platform:
         self._apply_params()
         self.engine = TerraEngine(self.spec, EngineConfig(
             forecast_horizon_h=12, forecast_samples=120,
-            outlier_sigma=5.0))
+            outlier_sigma=5.0, track_bias=True, cusum_threshold=8.0))
         try:
             self.controller = Controller(self.spec, self.engine.cfg,
                                           policy_for(self.cfg["domain"]),
@@ -371,6 +371,7 @@ class Platform:
                 "channels": self.cfg.get("channels"),
                 "params": self.cfg.get("params") or {},
                 "speed": float(self.cfg.get("speed", 0.4)),
+                "track_bias": True, "cusum_threshold": 8.0,
                 "hidden": d.hidden,
                 "safety": [{"name": s.name, "limit": s.limit,
                             "direction": s.direction, "units": s.units} for s in d.safety],
@@ -392,6 +393,7 @@ class Platform:
                     "source": self.source_name, "channels": channels,
                     "used": est.used_channels, "hidden": est.hidden,
                     "hidden_std": est.hidden_std, "nis": est.nis,
+                    "sensor_bias": {k: round(v, 4) for k, v in est.sensor_bias.items()},
                     "budget": est.budget_residual, "risks": risks, "events": events,
                     "recommendation": (self.rec.message() if self.rec else None),
                     "autonomy": self.autonomy, "offline": self.offline}

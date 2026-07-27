@@ -92,6 +92,47 @@ def cmd_analyze(args) -> int:
     return 0
 
 
+def cmd_backtest(args) -> int:
+    from terra.ingest import backtest_csv
+    spec = _get_domain(args.domain).build_spec()
+    kw = {}
+    if args.u_col:
+        kw["u_col"] = args.u_col
+    res = backtest_csv(spec, args.csv, truth_col=args.truth, **kw)
+    print(f"Backtest — {spec.name}  ({res['n_steps']} steps from {args.csv})")
+    if "hidden_rmse" in res:
+        print(f"  hidden RMSE {res['hidden_rmse']:.3f}  bias {res['hidden_bias']:+.3f}  "
+              f"coverage {res['hidden_coverage']:.0%}")
+    for t, lv, m in res["events"]:
+        print(f"  {t:6.1f} h  {lv:5}  {m}")
+    return 0
+
+
+def cmd_fleet_pool(args) -> int:
+    """Pool per-site calibrated posteriors into a shared prior (the flywheel).
+    Each --sites JSON is {param: [mean, std]} from one site's calibration."""
+    import glob
+    import json
+    import os
+    from terra.fleet import pool_posteriors
+    files = sorted(glob.glob(os.path.join(args.sites, "*.json")))
+    sites = []
+    for f in files:
+        with open(f) as fh:
+            raw = json.load(fh)
+        sites.append({k: (float(v[0]), float(v[1])) for k, v in raw.items()})
+    pooled = pool_posteriors(sites)
+    print(f"pooled {len(sites)} site posteriors -> shared prior:")
+    for p, d in pooled.items():
+        print(f"  {p:10s} mean {d['mean']:.4g}  prior_std {d['prior_std']:.4g}  "
+              f"tau {d['tau']:.4g}  (n={d['n_sites']})")
+    if args.out:
+        with open(args.out, "w") as fh:
+            json.dump({p: [d["mean"], d["prior_std"]] for p, d in pooled.items()}, fh, indent=2)
+        print(f"wrote shared prior -> {args.out}")
+    return 0
+
+
 def cmd_calibrate(args) -> int:
     try:
         from terra.calibrate import HAS_JAX
@@ -157,9 +198,15 @@ def cmd_node(args) -> int:
         print(f"reporting to {reporter.server} every {args.interval:g}s")
 
     state = os.environ.get("TERRA_STATE", "terra_node_state.json")
+    from terra.core import EngineConfig
+    ecfg = EngineConfig(
+        outlier_sigma=5.0,
+        track_bias=bool(bundle.get("track_bias", True)) if bundle else True,
+        cusum_threshold=(bundle.get("cusum_threshold", 8.0) if bundle else 8.0))
     runner = NodeRunner(
         spec, SimulatedDriver(spec, sim),
-        NodeConfig(state_path=state, max_cycles=args.cycles))
+        NodeConfig(state_path=state, max_cycles=args.cycles),
+        engine_config=ecfg)
     runner.run(on_event=lambda ev: print(f"  {ev[0]:6.1f} h  {ev[1]:5}  {ev[2]}"),
                banner=True, on_cycle=(reporter.on_cycle if reporter else None))
     if reporter:
@@ -191,6 +238,18 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("--domain", default="aquaculture")
     a.add_argument("--channel", default=None, help="channel for drift analysis")
     a.set_defaults(func=cmd_analyze)
+
+    bt = sub.add_parser("backtest", help="replay a logged CSV through the engine + score")
+    bt.add_argument("csv")
+    bt.add_argument("--domain", default="aquaculture")
+    bt.add_argument("--truth", default=None, help="column with hidden-state ground truth")
+    bt.add_argument("--u-col", dest="u_col", default=None, help="column with the input drive")
+    bt.set_defaults(func=cmd_backtest)
+
+    fp = sub.add_parser("fleet-pool", help="pool per-site posteriors into a shared prior")
+    fp.add_argument("--sites", required=True, help="dir of per-site posterior JSONs")
+    fp.add_argument("--out", default=None, help="write pooled shared prior JSON here")
+    fp.set_defaults(func=cmd_fleet_pool)
 
     c = sub.add_parser("calibrate", help="offline Bayesian fit (optional extra)")
     c.add_argument("--domain", default="aquaculture")

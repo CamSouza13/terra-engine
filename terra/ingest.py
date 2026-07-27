@@ -114,3 +114,26 @@ def run_csv(
         estimates.append(est)
 
     return ReplayResult(engine=engine, t=times, estimates=estimates)
+
+
+def backtest_csv(spec: SystemSpec, path: str, *, truth_col: str | None = None,
+                 **kw) -> dict:
+    """Replay a logged CSV and, if ``truth_col`` (lab ground truth for the hidden
+    state) is present, score the engine the same way the validation harness does.
+    This is the 'validated on real data, not synthetic' path: point a real farm's
+    logged readings at it and get RMSE, calibration, and warning events out."""
+    header, rows = load_csv(path, kw.get("time_col", "t"))
+    res = run_csv(spec, path, **kw)
+    out: dict = {"n_steps": len(res.estimates),
+                 "events": [[float(t), lv, m] for (t, lv, m) in res.events]}
+    if truth_col and truth_col in header:
+        est = np.array([e.hidden for e in res.estimates], float)
+        std = np.array([e.hidden_std for e in res.estimates], float)
+        tru = np.array([float(r.get(truth_col) or "nan") for r in rows], float)
+        ok = np.isfinite(tru)
+        est, std, tru = est[ok], std[ok], tru[ok]
+        if len(tru):
+            out["hidden_rmse"] = float(np.sqrt(np.mean((est - tru) ** 2)))
+            out["hidden_bias"] = float(np.mean(est - tru))
+            out["hidden_coverage"] = float(np.mean(np.abs(est - tru) <= 1.96 * std))
+    return out
