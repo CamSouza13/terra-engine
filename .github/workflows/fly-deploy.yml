@@ -1,18 +1,31 @@
 # See https://fly.io/docs/app-guides/continuous-deployment-with-github-actions/
+# Deploys only when a FLY_API_TOKEN secret is configured. Without it the job
+# succeeds and skips the deploy, so a repo with no Fly secret does not fail CI
+# on every push. Add the secret in repo Settings -> Secrets to enable CD.
 
 name: Fly Deploy
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
 jobs:
   deploy:
     name: Deploy app
     runs-on: ubuntu-latest
-    concurrency: deploy-group    # optional: ensure only one action runs at a time
+    concurrency: deploy-group
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
     steps:
+      - name: Skip when no Fly token is configured
+        if: ${{ env.FLY_API_TOKEN == '' }}
+        run: echo "FLY_API_TOKEN not set — skipping deploy. Add the secret to enable continuous deployment."
+
       - uses: actions/checkout@v4
+        if: ${{ env.FLY_API_TOKEN != '' }}
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        if: ${{ env.FLY_API_TOKEN != '' }}
+      - name: Deploy
+        if: ${{ env.FLY_API_TOKEN != '' }}
+        run: flyctl deploy --remote-only
