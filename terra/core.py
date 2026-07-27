@@ -137,6 +137,10 @@ class EngineConfig:
     bias_tau_h: float = 24.0             # time constant (h) of the bias tracker;
                                          # long enough that real dynamics stay in
                                          # the state, not the bias.
+    cusum_threshold: float | None = None  # CUSUM alarm level on NIS/dof for abrupt
+                                          # regime shifts; None = off. ~5-8 typical.
+    cusum_slack: float = 1.0             # reference value subtracted each step
+                                         # (NIS/dof of a consistent model ~ 1).
 
 
 class TerraEngine:
@@ -160,6 +164,7 @@ class TerraEngine:
         self._announced: set[str] = set()
         self._unhealthy_run = 0
         self._bias: dict[str, float] = {c: 0.0 for c in spec.channels}
+        self._cusum = 0.0
 
     # dynamics hook for the UKF (uses the input set at each step)
     def _fx(self, x: np.ndarray, dt: float) -> np.ndarray:
@@ -277,6 +282,17 @@ class TerraEngine:
                 (e.t, "INFO",
                  f"model/measurement consistency degraded "
                  f"(NIS/dof {e.nis/dof:.1f}); state posterior re-weighting."))
+        # CUSUM changepoint: accumulate NIS/dof above a reference to catch an
+        # abrupt regime shift the single-step NIS gate would miss.
+        if self.cfg.cusum_threshold is not None and e.used_channels:
+            self._cusum = max(0.0, self._cusum + e.nis / dof - self.cfg.cusum_slack)
+            if self._cusum > self.cfg.cusum_threshold and "cusum" not in self._announced:
+                self._announced.add("cusum")
+                self.events.append(
+                    (e.t, "WARN",
+                     f"abrupt regime shift detected (CUSUM {self._cusum:.1f} on "
+                     f"NIS/dof); dynamics no longer match the model."))
+                self._cusum = 0.0
 
 
 # ---- Monte-Carlo forecast (shared by the engine and the controller) ----------

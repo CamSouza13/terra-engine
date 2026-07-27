@@ -42,12 +42,16 @@ class Recommendation:
     control_u: Any
     reaches_safe: bool
     enacted: bool = False
+    confident: bool = True                       # estimate trusted enough to act
+    defer_reason: str = ""
 
     def message(self) -> str:
         verb = "Enacted" if self.enacted else "Recommended"
+        tail = "" if self.reaches_safe else " (best available)"
+        if not self.confident and not self.enacted:
+            tail += f" — holding for operator ({self.defer_reason})"
         return (f"{verb}: {self.actuator} ({self.detail}) — forecast risk "
-                f"{self.p_before:.2f} → {self.p_after:.2f}"
-                + ("" if self.reaches_safe else " (best available)"))
+                f"{self.p_before:.2f} → {self.p_after:.2f}" + tail)
 
 
 @dataclass
@@ -56,6 +60,9 @@ class ControlPolicy:
     actuators: list[Actuator]
     trigger_p: float = 0.30
     safe_p: float = 0.10
+    defer_above_std: float | None = None        # hold if hidden-state std exceeds
+    defer_above_nis: float | None = None        # hold if NIS/dof exceeds (model
+                                                # inconsistent — don't act blind)
 
 
 class Controller:
@@ -75,6 +82,14 @@ class Controller:
         if not r or r["p"] < self.policy.trigger_p:
             return None
         p0 = r["p"]
+        # uncertainty gate: is the estimate trustworthy enough to act on?
+        confident, reason = True, ""
+        pol = self.policy
+        if pol.defer_above_std is not None and estimate.hidden_std > pol.defer_above_std:
+            confident, reason = False, f"hidden σ {estimate.hidden_std:.2f} high"
+        dof = max(len(estimate.used_channels), 1)
+        if pol.defer_above_nis is not None and estimate.nis / dof > pol.defer_above_nis:
+            confident, reason = False, f"NIS/dof {estimate.nis/dof:.1f} high"
         best: Recommendation | None = None
         for act in self.policy.actuators:
             for lv in act.levels:
@@ -86,12 +101,16 @@ class Controller:
                                       reaches_safe=pa <= self.policy.safe_p,
                                       enacted=False)
                 if cand.reaches_safe:
-                    cand.enacted = self.authorized
+                    cand.confident = confident
+                    cand.defer_reason = reason
+                    cand.enacted = self.authorized and confident
                     return cand
                 if best is None or pa < best.p_after:
                     best = cand
         if best is not None:
-            best.enacted = self.authorized
+            best.confident = confident
+            best.defer_reason = reason
+            best.enacted = self.authorized and confident
         return best
 
 
