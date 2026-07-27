@@ -1,0 +1,103 @@
+<svg viewBox="0 0 1100 680" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Courier New',monospace">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="80%">
+    <stop offset="0%" stop-color="#0d0d0d"/><stop offset="70%" stop-color="#0a0a0a"/><stop offset="100%" stop-color="#000000"/>
+  </radialGradient>
+  <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L8 4.5 L0 9 Z" fill="#f4f4f4"/></marker>
+</defs>
+<rect width="1100" height="680" fill="url(#bg)"/>
+<g stroke="#333333" stroke-width="0.8" fill="none"><rect x="22" y="22" width="1056" height="636"/></g>
+<g stroke="#f4f4f4" stroke-width="1.1" fill="none">
+  <path d="M22 42 L22 22 L42 22"/><path d="M1078 42 L1078 22 L1058 22"/>
+  <path d="M22 638 L22 658 L42 658"/><path d="M1078 638 L1078 658 L1058 658"/>
+</g>
+<style>
+  .t{fill:#f2f2f2}.m{fill:#8c8c8c}
+  .box{fill:#0c0c0c;stroke:#4a4a4a;stroke-width:1.4}
+  .title{font-family:'Space Grotesk',sans-serif;font-weight:600}
+  .flow{stroke:#f4f4f4;stroke-width:1.6;fill:none}
+  .sub{font-size:10px;fill:#9a9a9a}.cap{font-size:11px;fill:#8c8c8c}
+  .hd{font-size:11px;letter-spacing:1px}
+</style>
+<text x="40" y="52" class="title" font-size="15" letter-spacing="6" fill="#f4f4f4">TERRA LABS</text>
+<line x1="40" y1="64" x2="128" y2="64" stroke="#f4f4f4" stroke-width="1"/>
+<text x="40" y="92" class="title t" font-size="23" letter-spacing="1.5">ONE ENGINE / MANY WORLDS</text>
+<text x="1060" y="52" text-anchor="end" class="m" font-size="11" letter-spacing="2">FIG. 06 / PLATFORM</text>
+
+<!-- CORE -->
+<rect class="box" x="370" y="130" width="360" height="118" rx="2" stroke="#cfcfcf" stroke-width="1.6"/>
+<text x="550" y="160" text-anchor="middle" class="title t" font-size="17">TERRA ENGINE</text>
+<text x="550" y="182" text-anchor="middle" class="sub">one Bayesian core, unchanged across domains</text>
+<text x="390" y="210" class="sub">· state estimation</text>
+<text x="390" y="228" class="sub">· Monte-Carlo forecast</text>
+<text x="580" y="210" class="sub">· uncertainty-gated control</text>
+<text x="580" y="228" class="sub">· offline + fleet calibration</text>
+
+<!-- what changes vs stays -->
+<text x="550" y="272" text-anchor="middle" class="cap" fill="#cfcfcf">a new world is a specification, not a new product — swap the system model + sensor map</text>
+
+<!-- connectors core -> 4 domains -->
+<g class="flow" marker-end="url(#ar)">
+  <path d="M440 248 L175 300 L175 330"/>
+  <path d="M500 248 L425 320 L425 330"/>
+  <path d="M600 248 L675 320 L675 330"/>
+  <path d="M660 248 L925 300 L925 330"/>
+</g>
+
+<!-- DOMAIN 1 AQUACULTURE -->
+<rect class="box" x="60" y="332" width="230" height="238" rx="2"/>
+<text x="75" y="358" class="title t" font-size="14">AQUACULTURE · RAS</text>
+<line x1="75" y1="368" x2="275" y2="368" stroke="#4a4a4a" stroke-width="0.8"/>
+<text x="75" y="392" class="sub" fill="#cfcfcf">hidden state</text>
+<text x="75" y="410" class="sub">biofilter nitrification efficiency</text>
+<text x="75" y="440" class="sub" fill="#cfcfcf">sensors</text>
+<text x="75" y="458" class="sub">DO · pH · TAN · nitrite · nitrate</text>
+<text x="75" y="488" class="sub" fill="#cfcfcf">prevents</text>
+<text x="75" y="506" class="sub">an ammonia / nitrite spike that</text>
+<text x="75" y="522" class="sub">wipes a stock out overnight</text>
+<text x="75" y="552" class="cap" fill="#8c8c8c">status: engine validated</text>
+
+<!-- DOMAIN 2 SOIL -->
+<rect class="box" x="310" y="332" width="230" height="238" rx="2"/>
+<text x="325" y="358" class="title t" font-size="14">SOIL · CEA</text>
+<line x1="325" y1="368" x2="525" y2="368" stroke="#4a4a4a" stroke-width="0.8"/>
+<text x="325" y="392" class="sub" fill="#cfcfcf">hidden state</text>
+<text x="325" y="410" class="sub">plant-available nutrient pool</text>
+<text x="325" y="440" class="sub" fill="#cfcfcf">sensors</text>
+<text x="325" y="458" class="sub">EC · moisture · pH · nitrate</text>
+<text x="325" y="488" class="sub" fill="#cfcfcf">prevents</text>
+<text x="325" y="506" class="sub">a nutrient crash or lockout</text>
+<text x="325" y="522" class="sub">before it stunts the crop</text>
+<text x="325" y="552" class="cap" fill="#8c8c8c">status: engine validated</text>
+
+<!-- DOMAIN 3 BIOREMEDIATION -->
+<rect class="box" x="560" y="332" width="230" height="238" rx="2"/>
+<text x="575" y="358" class="title t" font-size="14">BIOREMEDIATION</text>
+<line x1="575" y1="368" x2="775" y2="368" stroke="#4a4a4a" stroke-width="0.8"/>
+<text x="575" y="392" class="sub" fill="#cfcfcf">hidden state</text>
+<text x="575" y="410" class="sub">microbial activity · electron donor</text>
+<text x="575" y="440" class="sub" fill="#cfcfcf">sensors</text>
+<text x="575" y="458" class="sub">ORP · DO · pH · conductivity</text>
+<text x="575" y="488" class="sub" fill="#cfcfcf">prevents</text>
+<text x="575" y="506" class="sub">contaminant breakthrough when</text>
+<text x="575" y="522" class="sub">the culture quietly stalls</text>
+<text x="575" y="552" class="cap" fill="#8c8c8c">status: engine validated</text>
+
+<!-- DOMAIN 4 BLSS -->
+<rect class="box" x="810" y="332" width="230" height="238" rx="2"/>
+<text x="825" y="358" class="title t" font-size="14">BLSS · LIFE SUPPORT</text>
+<line x1="825" y1="368" x2="1025" y2="368" stroke="#4a4a4a" stroke-width="0.8"/>
+<text x="825" y="392" class="sub" fill="#cfcfcf">hidden state</text>
+<text x="825" y="410" class="sub">crop photosynthetic capacity</text>
+<text x="825" y="440" class="sub" fill="#cfcfcf">sensors</text>
+<text x="825" y="458" class="sub">CO₂ · O₂ · humidity · temp</text>
+<text x="825" y="488" class="sub" fill="#cfcfcf">prevents</text>
+<text x="825" y="506" class="sub">a cabin O₂ / CO₂ breach on a</text>
+<text x="825" y="522" class="sub">long-duration mission</text>
+<text x="825" y="552" class="cap" fill="#8c8c8c">status: NASA-named unmet need</text>
+
+<line x1="40" y1="600" x2="1060" y2="600" stroke="#4a4a4a" stroke-width="0.6" opacity="0.5"/>
+<text x="40" y="628" class="cap">The engine, the offline edge node, and the fleet flywheel are identical everywhere. Only the model of the world underneath them changes.</text>
+<text x="40" y="650" class="title" font-size="12" letter-spacing="3" fill="#f4f4f4">SAME CORE · FROM THE MUD TO THE MOON</text>
+<text x="1060" y="650" text-anchor="end" class="cap">terralaboratories.com</text>
+</svg>

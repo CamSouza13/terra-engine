@@ -1,0 +1,112 @@
+<svg viewBox="0 0 1100 680" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Courier New',monospace">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="80%">
+    <stop offset="0%" stop-color="#0d0d0d"/><stop offset="70%" stop-color="#0a0a0a"/><stop offset="100%" stop-color="#000000"/>
+  </radialGradient>
+  <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L8 4.5 L0 9 Z" fill="#f4f4f4"/></marker>
+  <marker id="arc" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L8 4.5 L0 9 Z" fill="#9a9a9a"/></marker>
+  <marker id="arm" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L8 4.5 L0 9 Z" fill="#dcdcdc"/></marker>
+</defs>
+<rect width="1100" height="680" fill="url(#bg)"/>
+<g stroke="#333333" stroke-width="0.8" fill="none"><rect x="22" y="22" width="1056" height="636"/></g>
+<g stroke="#f4f4f4" stroke-width="1.1" fill="none">
+  <path d="M22 42 L22 22 L42 22"/><path d="M1078 42 L1078 22 L1058 22"/>
+  <path d="M22 638 L22 658 L42 658"/><path d="M1078 638 L1078 658 L1058 658"/>
+</g>
+
+<style>
+  .t{fill:#f2f2f2}.m{fill:#8c8c8c}
+  .box{fill:#0c0c0c;stroke:#4a4a4a;stroke-width:1.4}
+  .title{font-family:'Space Grotesk',sans-serif;font-weight:600}
+  .flow{stroke:#f4f4f4;stroke-width:2;fill:none}
+  .act{stroke:#9a9a9a;stroke-width:2;fill:none}
+  .lbl{font-size:12px;letter-spacing:1px}.sub{font-size:10.5px;fill:#9a9a9a}.cap{font-size:11px;fill:#8c8c8c}
+</style>
+<text x="40" y="52" class="title" font-size="15" letter-spacing="6" fill="#f4f4f4">TERRA LABS</text>
+<line x1="40" y1="64" x2="128" y2="64" stroke="#f4f4f4" stroke-width="1"/>
+<text x="40" y="92" class="title t" font-size="23" letter-spacing="1.5">AUTONOMY / ACT ONLY WHEN CONFIDENT</text>
+<text x="1060" y="52" text-anchor="end" class="m" font-size="11" letter-spacing="2">FIG. 04 / AUTONOMY</text>
+
+<!-- legend -->
+<g transform="translate(700,78)">
+  <line x1="0" y1="0" x2="24" y2="0" class="flow" marker-end="url(#ar)"/><text x="30" y="4" class="sub">perceive / forecast</text>
+  <line x1="150" y1="0" x2="174" y2="0" class="act" marker-end="url(#arc)"/><text x="180" y="4" class="sub">act on the system</text>
+</g>
+
+<!-- SYSTEM (left) -->
+<rect class="box" x="40" y="300" width="150" height="90" rx="2"/>
+<text x="54" y="336" class="title t" font-size="14">LIVING SYSTEM</text>
+<text x="54" y="358" class="sub">tank · wetland · reactor</text>
+<text x="54" y="374" class="sub">habitat loop</text>
+
+<!-- SENSE + ESTIMATE -->
+<rect class="box" x="240" y="180" width="180" height="110" rx="2"/>
+<text x="254" y="206" class="title t" font-size="14">SENSE + ESTIMATE</text>
+<text x="254" y="230" class="sub">Bayesian state + 95% band</text>
+<text x="254" y="250" class="sub">forecast breach probability</text>
+<text x="254" y="270" class="sub">(FIG. 02)</text>
+
+<!-- RISK TRIGGER -->
+<rect class="box" x="470" y="180" width="180" height="110" rx="2"/>
+<text x="484" y="206" class="title t" font-size="14">RISK TRIGGER</text>
+<text x="484" y="230" class="sub">breach probability</text>
+<text x="484" y="250" class="sub">over the trigger?</text>
+<text x="484" y="276" class="sub" fill="#8c8c8c">below → keep watching</text>
+
+<!-- ACTION SEARCH -->
+<rect class="box" x="700" y="180" width="200" height="110" rx="2"/>
+<text x="714" y="206" class="title t" font-size="14">ACTION SEARCH</text>
+<text x="714" y="230" class="sub">try actuators, escalating;</text>
+<text x="714" y="250" class="sub">pick the least aggressive</text>
+<text x="714" y="270" class="sub">that clears the risk</text>
+
+<!-- UNCERTAINTY GATE (diamond) -->
+<g transform="translate(800,430)">
+  <path d="M0 -78 L120 0 L0 78 L-120 0 Z" fill="#0c0c0c" stroke="#dcdcdc" stroke-width="1.6"/>
+  <text x="0" y="-24" text-anchor="middle" class="title" font-size="14" fill="#dcdcdc">UNCERTAINTY</text>
+  <text x="0" y="-4" text-anchor="middle" class="title" font-size="14" fill="#dcdcdc">GATE</text>
+  <text x="0" y="18" text-anchor="middle" class="sub">estimate confident?</text>
+  <text x="0" y="36" text-anchor="middle" class="sub">(hidden σ low · NIS ok)</text>
+</g>
+
+<!-- ENACT -->
+<rect class="box" x="470" y="486" width="200" height="92" rx="2" stroke="#9a9a9a"/>
+<text x="484" y="512" class="title t" font-size="14">ENACT</text>
+<text x="484" y="534" class="sub">confident + authorized →</text>
+<text x="484" y="552" class="sub" fill="#9a9a9a">drive the actuator autonomously</text>
+
+<!-- RECOMMEND + HOLD -->
+<rect class="box" x="470" y="300" width="200" height="92" rx="2" stroke="#dcdcdc"/>
+<text x="484" y="326" class="title t" font-size="14">RECOMMEND + HOLD</text>
+<text x="484" y="348" class="sub">low confidence →</text>
+<text x="484" y="366" class="sub" fill="#dcdcdc">surface to the operator, don't act</text>
+
+<!-- ACTUATOR -->
+<rect class="box" x="220" y="486" width="170" height="92" rx="2" stroke="#9a9a9a"/>
+<text x="234" y="512" class="title t" font-size="14">ACTUATOR</text>
+<text x="234" y="534" class="sub">exchange · aeration</text>
+<text x="234" y="552" class="sub">dosing · LS backup</text>
+
+<!-- flows: perceive path (green) -->
+<g class="flow" marker-end="url(#ar)">
+  <path d="M190 320 C 210 250 215 235 240 235"/>
+  <path d="M420 235 L470 235"/>
+  <path d="M650 235 L700 235"/>
+  <path d="M800 290 L800 348"/>
+</g>
+<!-- gate -> recommend (amber) -->
+<g marker-end="url(#arm)"><path d="M690 415 C 640 400 620 360 672 350" fill="none" stroke="#dcdcdc" stroke-width="1.8"/></g>
+<text x="676" y="404" class="cap" fill="#dcdcdc">hold</text>
+<!-- gate -> enact (cyan) -->
+<g class="act" marker-end="url(#arc)"><path d="M690 460 C 640 500 620 520 672 526"/></g>
+<text x="628" y="500" class="cap" fill="#9a9a9a">go</text>
+<!-- enact -> actuator (cyan) -->
+<g class="act" marker-end="url(#arc)"><path d="M470 532 L392 532"/></g>
+<!-- actuator -> system (cyan up) -->
+<g class="act" marker-end="url(#arc)"><path d="M305 486 L305 430 L120 430 L120 390"/></g>
+<text x="150" y="422" class="cap" fill="#9a9a9a">corrective action</text>
+
+<line x1="40" y1="612" x2="1060" y2="612" stroke="#4a4a4a" stroke-width="0.6" opacity="0.5"/>
+<text x="40" y="640" class="cap">A forecast is only worth what you do with it. The engine acts unattended only when it trusts its own estimate; otherwise it hands the call to a human.</text>
+<text x="1060" y="640" text-anchor="end" class="cap">terralaboratories.com</text>
+</svg>

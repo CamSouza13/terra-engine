@@ -1,0 +1,47 @@
+<svg viewBox="0 0 1100 680" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Courier New',monospace">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="40%" r="85%">
+    <stop offset="0%" stop-color="#0f0f0f"/><stop offset="70%" stop-color="#090909"/><stop offset="100%" stop-color="#000000"/>
+  </radialGradient>
+</defs>
+<rect width="1100" height="680" fill="url(#bg)"/>
+<g stroke="#333333" stroke-width="0.8" fill="none"><rect x="22" y="22" width="1056" height="636"/></g>
+<g stroke="#f4f4f4" stroke-width="1.1" fill="none">
+  <path d="M22 42 L22 22 L42 22"/><path d="M1078 42 L1078 22 L1058 22"/>
+  <path d="M22 638 L22 658 L42 658"/><path d="M1078 638 L1078 658 L1058 658"/>
+</g>
+<style>
+  .t{fill:#f2f2f2}.m{fill:#8c8c8c}
+  .title{font-family:'Space Grotesk',sans-serif;font-weight:600}
+  .sub{font-size:12px;fill:#9a9a9a}.cap{font-size:11px;fill:#8c8c8c}
+</style>
+
+<!-- octagon mark -->
+<g transform="translate(550,150)" stroke="#f4f4f4" stroke-width="1.4" fill="none">
+  <polygon points="-34,-14 -14,-34 14,-34 34,-14 34,14 14,34 -14,34 -34,14"/>
+  <polygon points="-18,-7 -7,-18 7,-18 18,-7 18,7 7,18 -7,18 -18,7" stroke="#8c8c8c" stroke-width="1"/>
+</g>
+
+<text x="550" y="60" text-anchor="middle" class="title" font-size="15" letter-spacing="8" fill="#f4f4f4">TERRA LABS</text>
+<line x1="512" y1="74" x2="588" y2="74" stroke="#f4f4f4" stroke-width="1"/>
+
+<text x="550" y="270" text-anchor="middle" class="title t" font-size="58" letter-spacing="4">SYSTEMS BRIEF</text>
+<text x="550" y="308" text-anchor="middle" class="sub" font-size="14">Autonomous control for closed living systems</text>
+
+<text x="550" y="360" text-anchor="middle" class="cap" font-size="12.5">One Bayesian engine reads the true state of a living loop from cheap, drifting sensors,</text>
+<text x="550" y="380" text-anchor="middle" class="cap" font-size="12.5">forecasts failure hours ahead, and acts on it autonomously, on-site and offline.</text>
+
+<!-- contents -->
+<g>
+  <line x1="330" y1="418" x2="770" y2="418" stroke="#4a4a4a" stroke-width="0.8"/>
+  <text x="330" y="446" class="sub"><tspan fill="#8c8c8c">FIG. 01</tspan>  <tspan fill="#f2f2f2">Signal to action / the pipeline</tspan></text>
+  <text x="330" y="470" class="sub"><tspan fill="#8c8c8c">FIG. 02</tspan>  <tspan fill="#f2f2f2">Inside the engine / Bayesian state estimation</tspan></text>
+  <text x="330" y="494" class="sub"><tspan fill="#8c8c8c">FIG. 03</tspan>  <tspan fill="#f2f2f2">TLK node / the signal chain</tspan></text>
+  <text x="330" y="518" class="sub"><tspan fill="#8c8c8c">FIG. 04</tspan>  <tspan fill="#f2f2f2">Autonomy / act only when confident</tspan></text>
+  <text x="330" y="542" class="sub"><tspan fill="#8c8c8c">FIG. 05</tspan>  <tspan fill="#f2f2f2">The data flywheel / each site sharpens the next</tspan></text>
+  <text x="330" y="566" class="sub"><tspan fill="#8c8c8c">FIG. 06</tspan>  <tspan fill="#f2f2f2">One engine, many worlds</tspan></text>
+</g>
+
+<text x="40" y="628" class="title" font-size="12" letter-spacing="3" fill="#f4f4f4">FROM THE MUD TO THE MOON</text>
+<text x="1060" y="628" text-anchor="end" class="cap">terralaboratories.com · REV A · 2026</text>
+</svg>

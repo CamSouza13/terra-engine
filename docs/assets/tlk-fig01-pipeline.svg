@@ -1,0 +1,151 @@
+<svg viewBox="0 0 1100 680" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Courier New',monospace">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="80%">
+    <stop offset="0%" stop-color="#0d0d0d"/><stop offset="70%" stop-color="#0a0a0a"/><stop offset="100%" stop-color="#000000"/>
+  </radialGradient>
+  <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0 0 L8 4.5 L0 9 Z" fill="#f4f4f4"/>
+  </marker>
+  <marker id="arc" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+    <path d="M0 0 L8 4.5 L0 9 Z" fill="#9a9a9a"/>
+  </marker>
+</defs>
+<rect width="1100" height="680" fill="url(#bg)"/>
+<g stroke="#333333" stroke-width="0.8" fill="none"><rect x="22" y="22" width="1056" height="636"/></g>
+<g stroke="#f4f4f4" stroke-width="1.1" fill="none">
+  <path d="M22 42 L22 22 L42 22"/><path d="M1078 42 L1078 22 L1058 22"/>
+  <path d="M22 638 L22 658 L42 658"/><path d="M1078 638 L1078 658 L1058 658"/>
+</g>
+
+<style>
+  .t{fill:#f2f2f2}
+  .m{fill:#8c8c8c}
+  .box{fill:#0c0c0c;stroke:#4a4a4a;stroke-width:1.4}
+  .title{font-family:'Space Grotesk',sans-serif;font-weight:600}
+  .flow{stroke:#f4f4f4;stroke-width:2;fill:none}
+  .flowc{stroke:#9a9a9a;stroke-width:1.6;fill:none;stroke-dasharray:4 5}
+  .sync{stroke:#cfcfcf;stroke-width:1.4;fill:none;stroke-dasharray:2 6;opacity:.75}
+  .lbl{font-size:12px;letter-spacing:1px}
+  .sub{font-size:10.5px;fill:#9a9a9a}
+  .cap{font-size:11px;fill:#8c8c8c}
+</style>
+
+<!-- header -->
+<text x="40" y="52" class="title" font-size="15" letter-spacing="6" fill="#f4f4f4">TERRA LABS</text>
+<line x1="40" y1="64" x2="128" y2="64" stroke="#f4f4f4" stroke-width="1"/>
+<text x="40" y="92" class="title t" font-size="23" letter-spacing="1.5">SIGNAL TO ACTION / THE PIPELINE</text>
+<text x="1060" y="52" text-anchor="end" class="m" font-size="11" letter-spacing="2">FIG. 01 / SYSTEM</text>
+
+<!-- legend -->
+<g transform="translate(720,74)">
+  <line x1="0" y1="0" x2="26" y2="0" class="flow" marker-end="url(#ar)"/><text x="32" y="4" class="sub">sensor / state data</text>
+  <line x1="150" y1="0" x2="176" y2="0" class="flowc" marker-end="url(#arc)"/><text x="182" y="4" class="sub">control / action</text>
+  <line x1="0" y1="18" x2="26" y2="18" class="sync"/><text x="32" y="22" class="sub">store-and-forward sync (offline-tolerant)</text>
+</g>
+
+<!-- ===== 1 SENSORS ===== -->
+<text x="40" y="150" class="lbl m">WET SENSORS</text>
+<g>
+  <rect class="box" x="40" y="164" width="140" height="30" rx="2"/><text x="52" y="184" class="t" font-size="12">Dissolved O₂ · pH</text>
+  <rect class="box" x="40" y="202" width="140" height="30" rx="2"/><text x="52" y="222" class="t" font-size="12">Ammonia · Nitrite</text>
+  <rect class="box" x="40" y="240" width="140" height="30" rx="2"/><text x="52" y="260" class="t" font-size="12">Nitrate · EC · Temp</text>
+</g>
+<text x="40" y="300" class="cap">cheap OEM probes,</text>
+<text x="40" y="316" class="cap">noisy and drifting</text>
+
+<!-- ===== 2 EDGE NODE ===== -->
+<rect x="212" y="132" width="180" height="300" fill="none" stroke="#cfcfcf" stroke-width="1.3" stroke-dasharray="6 6" rx="2" opacity="0.6"/>
+<text x="222" y="152" class="lbl" fill="#cfcfcf">TLK EDGE NODE</text>
+<rect class="box" x="224" y="176" width="156" height="70" rx="2"/>
+<text x="236" y="200" class="t" font-size="12.5">Acquire + isolate</text>
+<text x="236" y="220" class="sub">24-bit ADC, galvanic</text>
+<text x="236" y="236" class="sub">isolation, calib.</text>
+<rect class="box" x="224" y="258" width="156" height="66" rx="2"/>
+<text x="236" y="282" class="t" font-size="12.5">Run engine on-site</text>
+<text x="236" y="302" class="sub">numpy-only, no GPU,</text>
+<text x="236" y="318" class="sub">~10 ms / cycle, offline</text>
+<rect class="box" x="224" y="336" width="156" height="60" rx="2"/>
+<text x="236" y="360" class="t" font-size="12.5">Store-and-forward</text>
+<text x="236" y="380" class="sub">buffer, syncs on link</text>
+
+<!-- ===== 3 ESTIMATION ===== -->
+<text x="430" y="150" class="lbl m">STATE ESTIMATION</text>
+<rect class="box" x="430" y="164" width="180" height="118" rx="2"/>
+<text x="444" y="190" class="t" font-size="13">Bayesian UKF</text>
+<text x="444" y="214" class="sub">predict → update</text>
+<text x="444" y="234" class="sub">hidden state + 95% band</text>
+<text x="444" y="254" class="sub">sensor-bias tracking</text>
+<text x="444" y="274" class="sub">NIS · CUSUM checks</text>
+
+<!-- ===== 4 FORECAST ===== -->
+<text x="430" y="322" class="lbl m">FORECAST</text>
+<rect class="box" x="430" y="336" width="180" height="96" rx="2"/>
+<text x="444" y="362" class="t" font-size="13">Monte-Carlo horizon</text>
+<text x="444" y="384" class="sub">propagate posterior</text>
+<text x="444" y="404" class="sub">breach probability +</text>
+<text x="444" y="422" class="sub">hours-ahead lead time</text>
+
+<!-- ===== 5 DECISION ===== -->
+<text x="660" y="150" class="lbl m">DECISION</text>
+<rect class="box" x="660" y="164" width="180" height="118" rx="2"/>
+<text x="674" y="190" class="t" font-size="13">Alert + control</text>
+<text x="674" y="214" class="sub">forecast-driven action</text>
+<text x="674" y="234" class="sub">uncertainty-gated:</text>
+<text x="674" y="254" class="sub">act only when confident</text>
+<text x="674" y="274" class="sub">else recommend + hold</text>
+
+<!-- ===== 6 ACTUATORS ===== -->
+<text x="660" y="322" class="lbl m">ACTUATORS</text>
+<rect class="box" x="660" y="336" width="180" height="96" rx="2"/>
+<text x="674" y="362" class="t" font-size="13">Real levers</text>
+<text x="674" y="384" class="sub">water exchange, aeration</text>
+<text x="674" y="404" class="sub">dosing, feed hold,</text>
+<text x="674" y="422" class="sub">life-support backup</text>
+
+<!-- ===== 7 PLATFORM / FLEET ===== -->
+<text x="890" y="150" class="lbl m">PLATFORM · FLEET</text>
+<rect class="box" x="890" y="164" width="170" height="118" rx="2"/>
+<text x="904" y="190" class="t" font-size="13">Cloud console</text>
+<text x="904" y="214" class="sub">fleet view, alerts,</text>
+<text x="904" y="234" class="sub">reports, audit log</text>
+<text x="904" y="258" class="sub">calibration + fleet</text>
+<text x="904" y="276" class="sub">prior pooling</text>
+<rect class="box" x="890" y="336" width="170" height="96" rx="2"/>
+<text x="904" y="362" class="t" font-size="13">Data flywheel</text>
+<text x="904" y="384" class="sub">each site sharpens</text>
+<text x="904" y="404" class="sub">the next (see FIG. 05)</text>
+
+<!-- DATA LANE (green, left to right) -->
+<g class="flow" marker-end="url(#ar)">
+  <path d="M180 179 L222 208"/><path d="M180 217 L222 214"/><path d="M180 255 L222 222"/>
+  <!-- node -> estimation -->
+  <path d="M392 223 L430 223"/>
+  <!-- estimation -> decision (state) -->
+  <path d="M610 210 L660 210"/>
+  <!-- estimation -> forecast (down) -->
+  <path d="M520 282 L520 336"/>
+  <!-- forecast -> decision (elbow up) -->
+  <path d="M610 384 L636 384 L636 300 L658 300"/>
+  <!-- decision -> platform -->
+  <path d="M840 223 L890 223"/>
+</g>
+
+<!-- CONTROL LANE (cyan): decision -> actuators -> back to the system (bottom lane) -->
+<g class="flowc" marker-end="url(#arc)">
+  <path d="M750 282 L750 336"/>
+  <path d="M700 432 L700 452 L110 452 L110 300"/>
+</g>
+<text x="360" y="446" class="cap" fill="#9a9a9a">corrective action returns to the loop</text>
+
+<!-- SYNC LANE (aqua, offline-tolerant): node <-> platform, in the mid gap -->
+<path class="sync" d="M392 308 L888 308"/>
+<text x="640" y="302" text-anchor="middle" class="cap" fill="#cfcfcf">offline-tolerant sync · readings up, calibrated config + shared priors down</text>
+
+<!-- footer strip -->
+<line x1="40" y1="470" x2="1060" y2="470" stroke="#4a4a4a" stroke-width="0.6" opacity="0.5"/>
+<text x="40" y="500" class="cap">Perception and action run at the edge, offline. The cloud coordinates the fleet and closes the learning loop; it is never in the safety path.</text>
+<text x="40" y="524" class="cap">One engine drives every domain · aquaculture, soil, bioremediation, and bioregenerative life support · by swapping the system model.</text>
+
+<text x="40" y="632" class="title" font-size="12" letter-spacing="3" fill="#f4f4f4">ONE ENGINE · MANY WORLDS</text>
+<text x="1060" y="632" text-anchor="end" class="cap">terralaboratories.com</text>
+</svg>
