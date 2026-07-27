@@ -1,0 +1,109 @@
+<svg viewBox="0 0 1100 680" xmlns="http://www.w3.org/2000/svg" font-family="'JetBrains Mono','Courier New',monospace">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="42%" r="80%">
+    <stop offset="0%" stop-color="#0d0d0d"/><stop offset="70%" stop-color="#0a0a0a"/><stop offset="100%" stop-color="#000000"/>
+  </radialGradient>
+  <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L8 4.5 L0 9 Z" fill="#f4f4f4"/></marker>
+</defs>
+<rect width="1100" height="680" fill="url(#bg)"/>
+<g stroke="#333333" stroke-width="0.8" fill="none"><rect x="22" y="22" width="1056" height="636"/></g>
+<g stroke="#f4f4f4" stroke-width="1.1" fill="none">
+  <path d="M22 42 L22 22 L42 22"/><path d="M1078 42 L1078 22 L1058 22"/>
+  <path d="M22 638 L22 658 L42 658"/><path d="M1078 638 L1078 658 L1058 658"/>
+</g>
+<style>
+  .t{fill:#f2f2f2}.m{fill:#8c8c8c}
+  .box{fill:#0c0c0c;stroke:#4a4a4a;stroke-width:1.4}
+  .title{font-family:'Space Grotesk',sans-serif;font-weight:600}
+  .sub{font-size:10px;fill:#9a9a9a}.cap{font-size:11px;fill:#8c8c8c}
+  .link{stroke:#4a4a4a;stroke-width:1.4}
+  .heal{stroke:#f4f4f4;stroke-width:2.4}
+  .node{fill:#0c0c0c;stroke:#9a9a9a;stroke-width:1.6}
+  .nlbl{font-size:9px;fill:#8c8c8c}
+</style>
+<text x="40" y="52" class="title" font-size="15" letter-spacing="6" fill="#f4f4f4">TERRA LABS</text>
+<line x1="40" y1="64" x2="128" y2="64" stroke="#f4f4f4" stroke-width="1"/>
+<text x="40" y="92" class="title t" font-size="23" letter-spacing="1.5">SELF-HEALING SENSOR MESH</text>
+<text x="1060" y="52" text-anchor="end" class="m" font-size="11" letter-spacing="2">FIG. 07 / NETWORK</text>
+
+<!-- ===== MESH GRAPH ===== -->
+<!-- surviving links -->
+<g class="link">
+  <line x1="185" y1="250" x2="300" y2="190"/>   <!-- GW-A -->
+  <line x1="185" y1="250" x2="300" y2="330"/>   <!-- GW-B -->
+  <line x1="300" y1="190" x2="440" y2="250"/>   <!-- A-C -->
+  <line x1="300" y1="330" x2="440" y2="250"/>   <!-- B-C -->
+  <line x1="300" y1="330" x2="440" y2="400"/>   <!-- B-D -->
+  <line x1="440" y1="250" x2="590" y2="360"/>   <!-- C-F -->
+  <line x1="440" y1="400" x2="590" y2="360"/>   <!-- D-F -->
+  <line x1="590" y1="210" x2="710" y2="290"/>   <!-- E-H -->
+  <line x1="590" y1="360" x2="710" y2="290"/>   <!-- F-H -->
+</g>
+
+<!-- healed path (bright): E - H - F - C - B - GW -->
+<g class="heal" fill="none">
+  <polyline points="590,210 710,290 590,360 440,250 300,330 185,250"/>
+</g>
+
+<!-- broken link C-E with X -->
+<line x1="440" y1="250" x2="590" y2="210" stroke="#666666" stroke-width="1.2" stroke-dasharray="4 4"/>
+<g stroke="#f4f4f4" stroke-width="1.6"><path d="M508 224 l12 12 M520 224 l-12 12"/></g>
+<text x="505" y="212" class="cap" fill="#f4f4f4">link down</text>
+
+<!-- imputation to dead node X: dashed from D and F -->
+<line x1="440" y1="400" x2="450" y2="520" stroke="#cfcfcf" stroke-width="1.2" stroke-dasharray="2 5"/>
+<line x1="590" y1="360" x2="450" y2="520" stroke="#cfcfcf" stroke-width="1.2" stroke-dasharray="2 5"/>
+
+<!-- gateway -->
+<rect class="box" x="150" y="228" width="70" height="44" rx="2" stroke="#f4f4f4" stroke-width="1.8"/>
+<text x="185" y="246" text-anchor="middle" class="t" font-size="11">GATEWAY</text>
+<text x="185" y="262" text-anchor="middle" class="nlbl">uplink</text>
+
+<!-- nodes -->
+<g>
+  <circle class="node" cx="300" cy="190" r="15"/><text x="300" y="194" text-anchor="middle" class="nlbl">A</text>
+  <circle class="node" cx="300" cy="330" r="15"/><text x="300" y="334" text-anchor="middle" class="nlbl">B</text>
+  <circle class="node" cx="440" cy="250" r="15"/><text x="440" y="254" text-anchor="middle" class="nlbl">C</text>
+  <circle class="node" cx="440" cy="400" r="15"/><text x="440" y="404" text-anchor="middle" class="nlbl">D</text>
+  <circle class="node" cx="590" cy="210" r="15"/><text x="590" y="214" text-anchor="middle" class="nlbl">E</text>
+  <circle class="node" cx="590" cy="360" r="15"/><text x="590" y="364" text-anchor="middle" class="nlbl">F</text>
+  <circle class="node" cx="710" cy="290" r="15"/><text x="710" y="294" text-anchor="middle" class="nlbl">H</text>
+</g>
+<!-- dead node X -->
+<circle cx="450" cy="520" r="15" fill="#0c0c0c" stroke="#666666" stroke-width="1.4" stroke-dasharray="3 3"/>
+<g stroke="#8c8c8c" stroke-width="1.6"><path d="M442 512 l16 16 M458 512 l-16 16"/></g>
+<text x="450" y="552" text-anchor="middle" class="cap" fill="#cfcfcf">node down · state imputed</text>
+
+<!-- legend for mesh -->
+<g transform="translate(150,600)">
+  <line x1="0" y1="0" x2="26" y2="0" class="heal"/><text x="32" y="4" class="sub">healed route to gateway</text>
+  <line x1="220" y1="0" x2="246" y2="0" class="link"/><text x="252" y="4" class="sub">mesh link</text>
+  <line x1="360" y1="0" x2="386" y2="0" stroke="#cfcfcf" stroke-width="1.2" stroke-dasharray="2 5"/><text x="392" y="4" class="sub">neighbour imputation</text>
+</g>
+
+<!-- ===== STACK PANEL ===== -->
+<rect class="box" x="800" y="150" width="260" height="404" rx="2"/>
+<text x="820" y="178" class="title t" font-size="14">TLK-MESH STACK</text>
+<line x1="820" y1="188" x2="1040" y2="188" stroke="#4a4a4a" stroke-width="0.8"/>
+<text x="820" y="214" class="sub" fill="#cfcfcf">RF</text>
+<text x="820" y="230" class="sub">sub-GHz LoRa or 2.4 GHz 802.15.4</text>
+<text x="820" y="258" class="sub" fill="#cfcfcf">ROUTING</text>
+<text x="820" y="274" class="sub">least-cost to gateway, primary +</text>
+<text x="820" y="290" class="sub">backup next-hop</text>
+<text x="820" y="318" class="sub" fill="#cfcfcf">HEAL</text>
+<text x="820" y="334" class="sub">local repair on missed beacons,</text>
+<text x="820" y="350" class="sub">no central controller</text>
+<text x="820" y="378" class="sub" fill="#cfcfcf">SYNC</text>
+<text x="820" y="394" class="sub">gossip time-sync, coordinated sampling</text>
+<text x="820" y="422" class="sub" fill="#cfcfcf">BUFFER</text>
+<text x="820" y="438" class="sub">store-and-forward when partitioned</text>
+<text x="820" y="466" class="sub" fill="#cfcfcf">SECURITY</text>
+<text x="820" y="482" class="sub">per-node keys, authenticated frames</text>
+<text x="820" y="510" class="sub" fill="#f4f4f4">SENSING</text>
+<text x="820" y="526" class="sub">engine imputes a dropped node's</text>
+<text x="820" y="542" class="sub">state from correlated neighbours</text>
+
+<line x1="40" y1="628" x2="1060" y2="628" stroke="#4a4a4a" stroke-width="0.6" opacity="0.5"/>
+<text x="40" y="650" class="title" font-size="12" letter-spacing="3" fill="#f4f4f4">PACKETS HEAL · SO DOES THE DATA</text>
+<text x="1060" y="650" text-anchor="end" class="cap">terralaboratories.com</text>
+</svg>

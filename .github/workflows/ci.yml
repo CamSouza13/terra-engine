@@ -95,6 +95,9 @@ jobs:
       - name: Run flywheel tests (backtest + fleet-pool)
         run: python tests/test_flywheel.py
 
+      - name: Run self-healing mesh tests
+        run: python tests/test_mesh.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 
