@@ -220,6 +220,18 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
 .shChip .d{width:7px;height:7px;border-radius:50%;background:var(--sh,var(--muted))}
 .shGlyph{flex:0 0 auto;width:84px;height:84px;color:var(--sh);opacity:.9;display:none}
 .shGlyph svg{width:84px;height:84px}
+/* ---- plain-language dashboard readouts ---- */
+.mrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.vchip{font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--fill);color:var(--sec)}
+.vchip.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.vchip.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+.vchip.alert{color:var(--alert);background:color-mix(in srgb,var(--alert) 14%,transparent)}
+#riskChip{font-size:19px;font-weight:600;letter-spacing:-.01em}
+#riskChip.ok{color:var(--ok)}#riskChip.warn{color:var(--warn)}#riskChip.alert{color:var(--alert)}
+.bar .band{position:absolute;top:0;height:100%;background:var(--line2);opacity:.55;border-radius:2px}
+.ttip{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1px solid var(--line2);color:var(--muted);font-size:9px;font-weight:600;cursor:help;vertical-align:middle;position:relative;margin-left:2px}
+.ttip:hover::after{content:attr(data-tip);position:absolute;bottom:150%;left:50%;transform:translateX(-50%);width:224px;background:var(--ink);color:var(--bg);font-size:11px;font-weight:400;line-height:1.45;padding:8px 11px;border-radius:8px;z-index:40;box-shadow:var(--shadow);white-space:normal;text-align:left;letter-spacing:0}
+.ttip:hover::before{content:"";position:absolute;bottom:150%;left:50%;transform:translate(-50%,70%);border:5px solid transparent;border-top-color:var(--ink);z-index:40}
 .nav button .nvi{flex:0 0 auto;opacity:.82}
 .nav button.active .nvi{opacity:1;color:var(--accent)}
 .side .nav button.active .nvi{color:var(--accent)}
@@ -395,10 +407,28 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
         <div class="toggle" id="autoTog"><span>Autonomy</span><span class="sw"></span></div>
       </div>
       <div class="mcards" id="tele"></div>
-      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:12px">
-        <div class="card"><div class="label" id="hiddenName">Hidden state</div><div class="big" id="hiddenVal">—</div><div class="bar"><span id="hiddenBar"></span><span class="tick" id="hiddenTick" style="left:85%"></span></div><div class="hint">Inferred, never measured.</div></div>
-        <div class="card"><div class="label" id="riskName">Forecast breach</div><div class="big" id="riskP">—</div><div class="bar"><span id="riskBar"></span></div><div class="hint" id="riskWhen">12 h horizon</div></div>
-        <div class="card"><div class="label">Budget consistency</div><div class="big" id="budget">—</div><div class="hint">NIS/dof <span id="nis">—</span></div><div class="label" style="margin-top:16px">Controller</div><div class="hint" id="ctrl" style="color:var(--ink);margin-top:4px">—</div></div>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(214px,1fr));margin-top:12px">
+        <div class="card">
+          <div class="label" id="hiddenName">Hidden state</div>
+          <div class="mrow"><div class="big" id="hiddenVal">—</div><span class="vchip" id="hiddenChip">—</span></div>
+          <div class="bar"><span class="band" id="hiddenBand"></span><span id="hiddenBar"></span><span class="tick" id="hiddenTick" style="left:85%"></span></div>
+          <div class="hint" id="hiddenPlain">Inferred from every sensor at once, with an honest ± range.</div>
+        </div>
+        <div class="card">
+          <div class="label" id="riskName">Forecast</div>
+          <div class="mrow"><div id="riskChip" class="ok">All clear</div></div>
+          <div class="bar"><span id="riskBar"></span></div>
+          <div class="hint" id="riskWhen">Nothing forecast to breach in 12 h.</div>
+          <div class="hint" id="riskP" style="margin-top:2px;color:var(--muted)">—</div>
+        </div>
+        <div class="card">
+          <div class="label">Health checks</div>
+          <div class="mrow"><span class="vchip" id="nisChip">—</span></div>
+          <div class="hint" id="budget" style="margin-top:8px">Terra checks its model against the sensors every second.</div>
+          <div class="label" style="margin-top:16px">Autonomy</div>
+          <div class="hint" id="ctrl" style="color:var(--ink);margin-top:4px">—</div>
+          <span id="nis" style="display:none"></span>
+        </div>
       </div>
       <div class="grid g2" style="margin-top:12px">
         <div class="card"><h3 id="traceName">Live trace</h3><div class="desc">Engine estimate</div><canvas id="chart" height="150"></canvas></div>
@@ -609,11 +639,24 @@ function renderState(s){
   if(w.childElementCount!==chans.length){w.innerHTML="";chans.forEach(c=>{const cell=el("div","mc");cell.dataset.k=c.key;cell.innerHTML=`<div class="l">${c.key}</div><div class="v">—</div>`;w.appendChild(cell);});}
   const used=s.used||[];
   chans.forEach(c=>{const cell=w.querySelector('.mc[data-k="'+c.key+'"]');if(!cell)return;const v=(s.channels||{})[c.key];cell.querySelector(".v").textContent=v==null?"—":(Math.abs(v)<10?v.toFixed(2):v.toFixed(1));cell.classList.toggle("off",used.length&&!used.includes(c.key));});
-  $("#hiddenName").textContent=HLABEL[S.cfg.domain];
-  if(s.hidden!=null){$("#hiddenVal").innerHTML=`${s.hidden.toFixed(2)} <span style="font-size:13px;color:var(--muted);font-weight:400">± ${(s.hidden_std||0).toFixed(2)}</span>`;$("#hiddenBar").style.width=Math.max(3,Math.min(100,s.hidden*100))+"%";}
+  $("#hiddenName").innerHTML=HLABEL[S.cfg.domain]+' <span class="ttip" data-tip="What the sensors cannot measure directly — Terra infers it from every channel at once. Higher is healthier.">?</span>';
+  if(s.hidden!=null){
+    const h=s.hidden,sd=s.hidden_std||0;
+    $("#hiddenVal").innerHTML=`${h.toFixed(2)} <span style="font-size:13px;color:var(--muted);font-weight:400">± ${sd.toFixed(2)}</span>`;
+    $("#hiddenBar").style.width=Math.max(3,Math.min(100,h*100))+"%";
+    const bd=$("#hiddenBand");if(bd){const lo=Math.max(0,(h-1.96*sd)*100),hi=Math.min(100,(h+1.96*sd)*100);bd.style.left=lo+"%";bd.style.width=Math.max(1,hi-lo)+"%";}
+    const hc=$("#hiddenChip");if(hc){let k="ok",t="Healthy";if(h<0.7){k="alert";t="At risk";}else if(h<0.85){k="warn";t="Watch";}hc.className="vchip "+k;hc.textContent=t;$("#hiddenVal").style.color="var(--"+k+")";}
+  }
   let best=0,bn="—",when=null;Object.entries(s.risks||{}).forEach(([n,r])=>{if(r.p>=best){best=r.p;bn=n;when=r.t_cross;}});
-  $("#riskName").textContent="Forecast breach — "+bn;$("#riskP").textContent=Math.round(best*100)+"%";$("#riskBar").style.width=Math.round(best*100)+"%";$("#riskWhen").textContent=when?("~"+when.toFixed(1)+" h to breach"):"12 h horizon";
-  $("#budget").textContent=s.nis>2?"Open":"Closed";$("#nis").textContent=(s.nis||0).toFixed(1);
+  $("#riskBar").style.width=Math.round(best*100)+"%";
+  $("#riskName").innerHTML='Forecast <span class="ttip" data-tip="Terra projects the system forward and estimates the chance a safety limit is crossed within the next 12 hours.">?</span>';
+  const rc=$("#riskChip");if(rc){let k="ok",t="All clear";if(best>=0.30){k="alert";t="Breach likely";}else if(best>=0.10){k="warn";t="Breach possible";}rc.className=k;rc.textContent=t;}
+  $("#riskWhen").textContent=(best>=0.10&&when)?("Possible "+bn+" breach in ~"+when.toFixed(1)+" h."):"Nothing forecast to breach in 12 h.";
+  $("#riskP").textContent=best>0?(Math.round(best*100)+"% chance · "+bn):"—";
+  const nisOk=(s.nis||0)<=2,nc=$("#nisChip");
+  if(nc){nc.className="vchip "+(nisOk?"ok":"alert");nc.textContent=nisOk?"Sensors agree":"Sensors disagree";}
+  $("#budget").textContent=nisOk?"The engine's readings and its model are consistent.":"Readings and model disagree — Terra widened its uncertainty and flagged it.";
+  $("#nis").textContent=(s.nis||0).toFixed(1);
   $("#ctrl").textContent=s.recommendation||(s.offline?"Offline, autonomous":"Nominal");
   $("#traceName").textContent=(chans[0]&&chans[0].key)+" estimate";
   const evw=$("#events");evw.innerHTML="";(s.events||[]).slice().reverse().forEach(e=>{const d=el("div","ev "+e[1]);d.innerHTML=`<span class="t">${(+e[0]).toFixed(1)}h</span><span class="lv">${(e[1]||"").toLowerCase()}</span><span class="m">${e[2]}</span>`;evw.appendChild(d);});
