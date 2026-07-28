@@ -202,6 +202,29 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
 .ev.ALERT .lv{color:var(--alert);font-weight:500}
 .ev.WARN .lv{color:var(--warn)}
 .banner{box-shadow:var(--shadow)}
+/* ---- plain-language system-status hero ---- */
+.statusHero{display:flex;align-items:center;gap:22px;padding:20px 24px}
+.statusHero.ok{--sh:var(--ok)}.statusHero.warn{--sh:var(--warn)}.statusHero.alert{--sh:var(--alert)}.statusHero.idle{--sh:var(--muted)}
+.shRing{position:relative;width:92px;height:92px;flex:0 0 auto}
+.shRing svg{width:92px;height:92px;transition:stroke-dashoffset .6s ease}
+#shArc{transition:stroke-dashoffset .7s cubic-bezier(.2,.7,.2,1)}
+.shPct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
+.shBody{flex:1;min-width:0}
+.shTag{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.shVerdict{font-size:19px;font-weight:600;letter-spacing:-.015em;margin-top:3px;color:var(--sh)}
+.statusHero.idle .shVerdict{color:var(--ink)}
+.shSub{color:var(--sec);font-size:13px;margin-top:4px;max-width:60ch;line-height:1.5}
+.shChips{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+.shChip{font-size:12px;color:var(--sec);background:var(--fill);border-radius:20px;padding:5px 11px;display:flex;align-items:center;gap:6px}
+.shChip b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.shChip .d{width:7px;height:7px;border-radius:50%;background:var(--sh,var(--muted))}
+.shGlyph{flex:0 0 auto;width:84px;height:84px;color:var(--sh);opacity:.9;display:none}
+.shGlyph svg{width:84px;height:84px}
+.nav button .nvi{flex:0 0 auto;opacity:.82}
+.nav button.active .nvi{opacity:1;color:var(--accent)}
+.side .nav button.active .nvi{color:var(--accent)}
+@media(min-width:760px){.shGlyph{display:block}}
+@media(max-width:560px){.statusHero{flex-direction:column;text-align:center;align-items:center}.shChips{justify-content:center}}
 </style>
 </head>
 <body>
@@ -266,6 +289,26 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
       <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
         <div><div class="big" id="ovHello" style="font-size:20px">Welcome back</div><div class="hint" id="ovPlan">—</div></div>
         <a class="btn sm" href="/pricing" id="ovUpgrade" style="display:none">Upgrade</a>
+      </div>
+      <div class="card statusHero idle" id="ovStatus" style="margin-top:14px">
+        <div class="shRing">
+          <svg viewBox="0 0 96 96" aria-hidden="true">
+            <circle cx="48" cy="48" r="42" fill="none" stroke="var(--fill2)" stroke-width="7"/>
+            <circle id="shArc" cx="48" cy="48" r="42" fill="none" stroke="var(--sh,var(--muted))" stroke-width="7" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 48 48)"/>
+          </svg>
+          <div class="shPct" id="shPct">—</div>
+        </div>
+        <div class="shBody">
+          <div class="shTag" id="shTag">System status</div>
+          <div class="shVerdict" id="shVerdict">Bring your system online</div>
+          <div class="shSub" id="shSub">Connect a node and Terra starts watching the whole system, not one sensor at a time.</div>
+          <div class="shChips">
+            <span class="shChip"><span class="d" id="shDot"></span>Nodes online <b id="shNodes">0</b></span>
+            <span class="shChip">Model watching <b id="shModel">—</b></span>
+            <span class="shChip">Open alerts <b id="shAlerts">0</b></span>
+          </div>
+        </div>
+        <div class="shGlyph" id="shGlyph"></div>
       </div>
       <div class="card" id="ovOnboard" style="display:none;margin-top:14px"></div>
       <div class="mcards" id="ovCards" style="margin-top:14px"></div>
@@ -729,9 +772,46 @@ async function loadStart(){
   const setAuto=async(v)=>{try{await post("/api/control",{autonomy:v});$("#wAutoMsg").textContent=v?"on":"off";setTimeout(loadStart,400);}catch(e){$("#wAutoMsg").textContent=e.status===402?"Pro required":(e.status===403?"role can't":"failed");}};
   if(on)on.onclick=()=>setAuto(true);if(off)off.onclick=()=>setAuto(false);
 }
+const DOMGLYPH={
+  aquaculture:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="16" width="48" height="34" rx="4"/><path d="M8 43h48"/><path d="M20 33c4-5 12-5 16 0-4 5-12 5-16 0z"/><circle cx="23" cy="33" r="1.3" fill="currentColor" stroke="none"/><path d="M40 29v8"/></svg>',
+  soil:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 42V22"/><path d="M32 27c-6-2-10-8-10-8 6 0 10 4 10 8z"/><path d="M32 31c6-2 10-8 10-8-6 0-10 4-10 8z"/><path d="M12 46h40"/><path d="M12 52h40"/></svg>',
+  bioremediation:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M32 12c8 10 14 17 14 24a14 14 0 0 1-28 0c0-7 6-14 14-24z"/><path d="M27 36a5 5 0 0 0 5 5"/></svg>',
+  blss:'<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 42a20 20 0 0 1 40 0z"/><path d="M8 42h48"/><path d="M22 42V27a10 10 0 0 1 20 0v15"/></svg>'};
+function renderStatus(o){
+  const el=document.getElementById("ovStatus"); if(!el||!o) return;
+  const A=(o.recent_alerts||[]).map(a=>((a&&(a.level||a[1]||a.lv))||"")+"");
+  const hasAlert=A.some(s=>/ALERT/i.test(s)), hasWarn=A.some(s=>/WARN/i.test(s));
+  const live=(o.nodes_live||0)>0||o.running;
+  let cls,pct,verdict,sub;
+  if(!live){cls="idle";pct=0;verdict="Bring your system online";sub="Connect a node and Terra starts watching the whole system, not one sensor at a time.";}
+  else if(hasAlert){cls="alert";pct=.30;verdict="Action needed";sub="Terra forecasts a safety limit may be crossed soon. Open Alerts to see what, and how long you have.";}
+  else if(hasWarn){cls="warn";pct=.66;verdict="Keep an eye on it";sub="Something is drifting. Terra is watching closely and will warn you with time to act.";}
+  else{cls="ok";pct=1;verdict="All clear";sub="Your system is healthy and being watched. You'll hear from Terra before anything goes wrong.";}
+  el.className="card statusHero "+cls;
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set("shVerdict",verdict);set("shSub",sub);set("shPct",live?Math.round(pct*100)+"%":"—");
+  set("shNodes",o.nodes_live||0);set("shModel",o.calibrated?"tuned":(live?"yes":"—"));set("shAlerts",(o.recent_alerts||[]).length);
+  const arc=document.getElementById("shArc");if(arc)arc.style.strokeDashoffset=String(264*(1-pct));
+  const g=document.getElementById("shGlyph");if(g)g.innerHTML=DOMGLYPH[o.domain]||DOMGLYPH.aquaculture;
+}
+const NAVICONS={start:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',overview:'M3 3h8v6H3zM13 3h8v10h-8zM3 11h8v10H3zM13 15h8v6h-8z',setup:'M4 7h16v14H4zM9 3h6v4H9M8 11h.01M12 11h.01M16 11h.01',domain:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',calib:'M4 8h16M8 5v14M14 10v10M4 16h4M14 16h6',dash:'M3 12h4l3 8 4-16 3 8h4',fleet:'M4 5h16v5H4zM4 14h16v5H4zM8 7.5h.01M8 16.5h.01',alerts:'M12 4a5 5 0 0 0-5 5v3l-2 3h14l-2-3V9a5 5 0 0 0-5-5zM10 20a2 2 0 0 0 4 0',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3',order:'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7',support:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.8.4-1 .8-1 1.6M12 16h.01'};
+function paintNavIcons(){
+  document.querySelectorAll("#nav button[data-v]").forEach(b=>{
+    if(b.querySelector(".nvi"))return;
+    const d=NAVICONS[b.dataset.v]; if(!d)return;
+    const s=document.createElementNS("http://www.w3.org/2000/svg","svg");
+    s.setAttribute("class","nvi");s.setAttribute("viewBox","0 0 24 24");s.setAttribute("width","16");s.setAttribute("height","16");
+    s.setAttribute("fill","none");s.setAttribute("stroke","currentColor");s.setAttribute("stroke-width","1.7");
+    s.setAttribute("stroke-linecap","round");s.setAttribute("stroke-linejoin","round");
+    s.innerHTML='<path d="'+d+'"/>';
+    b.insertBefore(s,b.firstChild);
+  });
+}
+paintNavIcons();
 function mcard(label,val,sub){return `<div class="mc"><div class="l">${label}</div><div class="v" style="font-size:19px">${val}</div><div class="l" style="margin-top:3px;color:var(--muted)">${sub||""}</div></div>`;}
 async function loadOverview(){
   try{const o=await api("/api/overview");
+    renderStatus(o);
     const plan=o.plan||"local";
     $("#ovHello").textContent=o.workspace?("Welcome, "+o.workspace):"Welcome back";
     const trial=(plan==="trial"&&o.trial_hours_left!=null)?(" · "+o.trial_hours_left+"h left"):"";
