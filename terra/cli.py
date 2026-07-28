@@ -219,7 +219,7 @@ def _load_bridge_cfg(path: str) -> dict:
     text = open(path).read()
     if path.endswith((".yaml", ".yml")):
         try:
-            import yaml
+            import yaml  # type: ignore[import-untyped]
             return yaml.safe_load(text)
         except ImportError:
             raise SystemExit("YAML config needs pyyaml (pip install pyyaml), "
@@ -236,11 +236,31 @@ def cmd_bridge(args) -> int:
             print(f"{s['id']:20} {s['vendor']} {s['model']:26} "
                   f"[{s['transport']:6}] {', '.join(s['params'])}")
         return 0
-    if not args.config:
-        raise SystemExit("terra bridge needs --config <file.json|yaml> (or --list)")
 
-    cfg = _load_bridge_cfg(args.config)
     spec, _ = _get_domain(args.domain).simulate()
+
+    if args.simulate:
+        import tempfile
+        from terra.node import NodeRunner, NodeConfig
+        from terra.core import EngineConfig
+        driver = I.sample_bridge_driver(spec, max_cycles=args.cycles)
+        fd, tmp = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.remove(tmp)
+        runner = NodeRunner(
+            spec, driver, NodeConfig(state_path=tmp, max_cycles=args.cycles),
+            engine_config=EngineConfig(outlier_sigma=5.0, track_bias=True,
+                                       cusum_threshold=8.0))
+        print("simulating a live hardware bridge from the bundled sample "
+              "(no hardware attached)")
+        runner.run(on_event=lambda ev: print(f"  {ev[0]:6.1f} h  {ev[1]:5}  {ev[2]}"),
+                   banner=True)
+        return 0
+
+    if not args.config:
+        raise SystemExit("terra bridge needs --config <file.json|yaml> "
+                         "(or --list, or --simulate)")
+    cfg = _load_bridge_cfg(args.config)
 
     if args.check:
         probes = I.build_probes(cfg)
@@ -337,6 +357,8 @@ def build_parser() -> argparse.ArgumentParser:
     br.add_argument("--list", action="store_true", help="list supported systems")
     br.add_argument("--check", action="store_true",
                     help="read each probe once and print the value")
+    br.add_argument("--simulate", action="store_true",
+                    help="stream the bundled sample log as if from live hardware")
     br.add_argument("--cycles", type=int, default=None,
                     help="stop after N cycles (default: run continuously)")
     br.set_defaults(func=cmd_bridge)

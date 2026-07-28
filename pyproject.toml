@@ -65,6 +65,13 @@ warn_redundant_casts = true
 no_implicit_optional = false
 exclude = ["build/", "dist/"]
 
+[tool.pytest.ini_options]
+# Only collect the live test suite; ignore the packaged sdist copy under
+# terra_engine-*/ whose duplicate module names otherwise shadow the package.
+testpaths = ["tests"]
+norecursedirs = ["terra_engine-*", "dist", "build", ".git"]
+addopts = "--import-mode=importlib"
+
 [tool.coverage.run]
 source = ["terra"]
 omit = ["terra/calibrate/*"]     # jax layer isn't exercised in the numpy suite

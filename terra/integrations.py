@@ -217,6 +217,60 @@ def build_probes(cfg: dict, *, _clients: dict | None = None) -> dict:
     return probes
 
 
+def sample_path() -> str:
+    """Path to the bundled sample aquaculture log."""
+    import os
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(here, "data", "aquaculture_sample.csv")
+
+
+def sample_bridge_driver(spec, path: str | None = None, *, max_cycles=None):
+    """A driver that streams the bundled sample log as if it were live hardware.
+
+    Yields the same ``(t, dt, meas, u)`` cycles a real ``HardwareDriver`` produces,
+    so ``terra bridge --simulate`` exercises the live streaming path — engine,
+    state persistence, events — with no sensors attached.
+    """
+    from .node.driver import SensorDriver
+    from .ingest import load_csv, _parse_time, _to_hours
+
+    path = path or sample_path()
+    with open(path) as f:
+        header = f.readline().strip().split(",")
+    tcol = "t" if "t" in header else ("timestamp" if "timestamp" in header
+                                      else header[0])
+    _, rows = load_csv(path, tcol)
+    times = _to_hours([_parse_time(r[tcol]) for r in rows])
+    chans = [c for c in spec.channels if c in header]
+    ucol = "excretion_kg_h" if "excretion_kg_h" in header else None
+    n = len(rows) if max_cycles is None else min(int(max_cycles), len(rows))
+
+    class _SampleDriver(SensorDriver):
+        def steps(self):
+            for i in range(n):
+                meas = {}
+                for c in chans:
+                    raw = (rows[i].get(c) or "").strip()
+                    if raw:
+                        try:
+                            meas[c] = float(raw)
+                        except ValueError:
+                            pass
+                u = 0.0
+                if ucol:
+                    uraw = (rows[i].get(ucol) or "").strip()
+                    if uraw:
+                        try:
+                            u = (float(uraw), 1.0)
+                        except ValueError:
+                            pass
+                dt = (times[i] - times[i - 1] if i > 0
+                      else (times[1] - times[0] if len(times) > 1 else 1.0))
+                yield times[i], dt, meas, u
+
+    return _SampleDriver()
+
+
 def build_bridge(spec, cfg: dict, *, u=None, poll_interval_s=None,
                  max_cycles=None, _clients: dict | None = None):
     """Return a ``HardwareDriver`` that streams the configured hardware into the

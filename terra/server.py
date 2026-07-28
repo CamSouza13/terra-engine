@@ -717,7 +717,8 @@ def make_handler(pf: Platform):
                     ext = name.rsplit(".", 1)[-1].lower()
                     ct = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
                           "webp": "image/webp", "mp4": "video/mp4", "webm": "video/webm",
-                          "svg": "image/svg+xml", "ico": "image/x-icon"}.get(ext, "application/octet-stream")
+                          "svg": "image/svg+xml", "ico": "image/x-icon",
+                          "csv": "text/csv"}.get(ext, "application/octet-stream")
                     return self._send(200, open(f, "rb").read(), ct)
                 return self._send(404, {"error": "asset not found"})
             if p == "/favicon.ico":

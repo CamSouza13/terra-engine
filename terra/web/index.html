@@ -350,7 +350,8 @@ th{border-bottom-color:var(--line2)}
         <div class="card"><h3>Recent alerts</h3><div class="events" id="ovAlerts" style="margin-top:8px"></div></div>
         <div class="card"><h3>Quick actions</h3>
           <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px">
-            <button class="btn sm primary" onclick="show('calib')">Upload a sensor log</button>
+            <button class="btn sm primary" id="btnSampleOv">Load sample farm data</button>
+            <button class="btn sm" onclick="show('calib')">Upload a sensor log</button>
             <button class="btn sm" onclick="show('dash')">Live dashboard</button>
             <button class="btn sm" onclick="show('fleet')">Fleet</button>
             <button class="btn sm" onclick="show('calib')">Calibrate</button>
@@ -459,7 +460,8 @@ th{border-bottom-color:var(--line2)}
           <h3>Data</h3><div class="desc">Ingest a real logged CSV (timestamp and channel columns) — including exports from In-Situ, YSI, Hach and other systems. The engine replays it and stores every estimate. To stream live from those instruments, use <code style="font-family:var(--mono)">terra bridge</code>.</div>
           <label class="drop" id="drop" for="fileIn">Choose a CSV log to ingest</label>
           <input id="fileIn" type="file" accept=".csv" style="display:none">
-          <div class="row" style="margin-top:12px"><button class="btn sm" id="btnExport">Download stored data</button></div>
+          <div class="row" style="margin-top:12px;gap:8px"><button class="btn sm primary" id="btnSample">Load sample farm data</button><button class="btn sm" id="btnExport">Download stored data</button></div>
+          <div class="hint" style="margin-top:6px;color:var(--muted)">No hardware? The sample is 48 h of real-shaped RAS readings with a biofilter fault — watch the engine catch it.</div>
           <div class="hint" id="dataStatus"></div>
         </div>
         <div class="card">
@@ -690,6 +692,20 @@ function renderSafety(){const sf=$("#safety");sf.innerHTML="";S.cfg.safety.forEa
 $("#fileIn").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;const txt=await f.text();$("#dataStatus").textContent="Ingesting "+f.name+"…";
   try{await fetch(S.base+"/api/ingest",{method:"POST",headers:{"Content-Type":"text/csv"},body:txt});$("#dataStatus").textContent="Ingested "+f.name+". The engine is replaying it.";await loadConfig();}catch(err){$("#dataStatus").textContent="Ingest failed.";}});
 $("#btnExport").onclick=()=>{window.location=S.base+"/api/export";};
+async function loadSampleData(btn){
+  const label=btn?btn.textContent:"";if(btn){btn.disabled=true;btn.textContent="Loading sample…";}
+  if($("#dataStatus"))$("#dataStatus").textContent="Loading the sample farm log…";
+  try{
+    const csv=await fetch(S.base+"/assets/aquaculture_sample.csv",{cache:"no-store"}).then(r=>r.text());
+    const h={"Content-Type":"text/csv"};if(S.token)h.Authorization="Bearer "+S.token;
+    await fetch(S.base+"/api/ingest",{method:"POST",headers:h,body:csv});
+    if($("#dataStatus"))$("#dataStatus").textContent="Sample loaded — the engine replayed 48 h and caught the biofilter fault.";
+    await loadConfig();show("dash");
+  }catch(err){if($("#dataStatus"))$("#dataStatus").textContent="Could not load the sample.";}
+  if(btn){btn.disabled=false;btn.textContent=label;}
+}
+if($("#btnSample"))$("#btnSample").onclick=e=>loadSampleData(e.currentTarget);
+if($("#btnSampleOv"))$("#btnSampleOv").onclick=e=>loadSampleData(e.currentTarget);
 $("#btnCal").onclick=async()=>{if(!S.connected)return;$("#btnCal").disabled=true;$("#calStatus").textContent="Running HMC/NUTS on the active log. This can take a minute.";
   try{const r=await post("/api/calibrate",{});if(r.error){$("#calStatus").textContent=r.error;$("#btnCal").disabled=false;return;}
     $("#calStatus").textContent="Converged"+(r.converged?"":" (check R-hat)")+". Parameters applied to the engine.";
@@ -975,7 +991,7 @@ function cxRenderChannels(){
     else if(t==="sdi12"){a=`<input class="field cxA" data-ch="${ch}" value="0" style="width:80px">`;b=`<input class="field cxB" data-ch="${ch}" type="number" value="${idx}" style="width:80px">`;}
     else if(t==="mqtt"){a=`<input class="field cxA" data-ch="${ch}" placeholder="farm/tank1/${ch.toLowerCase()}" style="width:200px">`;b=`<input class="field cxB" data-ch="${ch}" placeholder="value" style="width:120px">`;}
     else if(t==="http"){a=`<input class="field cxA" data-ch="${ch}" placeholder="https://.../data" style="width:210px">`;b=`<input class="field cxB" data-ch="${ch}" placeholder="parameters.${ch}.value" style="width:160px">`;}
-    else if(t==="i2c"){a=`<input class="field cxA" data-ch="${ch}" placeholder="0x61" style="width:110px">`;b="";}
+    else if(t==="i2c"){const ez={DO:"0x61",ORP:"0x62",pH:"0x63",EC:"0x64",temp:"0x66"};a=`<input class="field cxA" data-ch="${ch}" value="${ez[ch]||""}" placeholder="0x61" style="width:110px">`;b="";}
     const tr=document.createElement("tr");
     tr.innerHTML=`<td><input type="checkbox" class="cxEn" data-ch="${ch}" ${dflt.includes(ch)?"checked":""}></td><td><b>${ch}</b></td><td>${a}</td><td>${b}</td>`;
     tb.appendChild(tr);

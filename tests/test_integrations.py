@@ -184,3 +184,45 @@ def test_bridge_feeds_engine_end_to_end():
         n += 1
     assert n == 5
     assert last is not None and last.hidden is not None
+
+
+def test_sample_assets_bundled():
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert os.path.isfile(os.path.join(root, "data", "aquaculture_sample.csv"))
+    # served statically by the console for the one-click demo
+    assert os.path.isfile(os.path.join(root, "terra", "web", "assets",
+                                       "aquaculture_sample.csv"))
+    assert os.path.isfile(I.sample_path())
+
+
+def test_sample_bridge_driver_catches_fault():
+    """The --simulate path: stream the sample as if live, engine infers the
+    biofilter collapse and raises events — no hardware."""
+    from terra.core import TerraEngine, EngineConfig
+    spec, _ = aquaculture.simulate()
+    driver = I.sample_bridge_driver(spec)
+    engine = TerraEngine(spec, EngineConfig(outlier_sigma=5.0, track_bias=True,
+                                            cusum_threshold=8.0))
+    last, n = None, 0
+    for t, dt, meas, u in driver.steps():
+        last = engine.step(t, dt, meas, u)
+        n += 1
+    assert n > 150                       # full 48h sample replayed
+    assert last.hidden < 0.5             # inferred efficiency collapsed
+    assert len(engine.events) >= 1       # at least one warning/alert raised
+
+
+def test_sample_bridge_respects_max_cycles():
+    spec, _ = aquaculture.simulate()
+    driver = I.sample_bridge_driver(spec, max_cycles=10)
+    assert sum(1 for _ in driver.steps()) == 10
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items())
+           if k.startswith("test_") and callable(v)]
+    for fn in fns:
+        fn()
+        print(f"PASS  {fn.__name__}")
+    print(f"\n{len(fns)}/{len(fns)} passed")
