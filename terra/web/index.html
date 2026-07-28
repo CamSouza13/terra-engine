@@ -236,6 +236,27 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
 .nav button.active .nvi{opacity:1;color:var(--accent)}
 .side .nav button.active .nvi{color:var(--accent)}
 @media(min-width:760px){.shGlyph{display:block}}
+/* ---- enterprise polish v2 ---- */
+.card{padding:20px 22px}
+.card h3{font-size:13.5px;font-weight:600;letter-spacing:.005em}
+.mc{position:relative;overflow:hidden;padding:15px 16px}
+.mc::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent 72%);opacity:.5}
+.mc .v{font-size:24px;letter-spacing:-.012em}
+.statusHero{padding:24px 26px}
+.shRing{width:104px;height:104px}.shRing svg{width:104px;height:104px}
+.shGlyph{width:92px;height:92px}.shGlyph svg{width:92px;height:92px}
+table tbody tr:hover td{background:var(--fill)}
+th{border-bottom-color:var(--line2)}
+/* status pills (fleet, connection, etc.) */
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px;color:var(--sec);background:var(--fill)}
+.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.live,.st.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.st.stale,.st.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.st.down,.st.alert{color:var(--alert);background:color-mix(in srgb,var(--alert) 12%,transparent)}
+/* friendlier empty states */
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:26px 16px}
+.empty svg{width:34px;height:34px;opacity:.5;margin-bottom:10px}
+.side{border-right:1px solid rgba(255,255,255,.06)}
 @media(max-width:560px){.statusHero{flex-direction:column;text-align:center;align-items:center}.shChips{justify-content:center}}
 </style>
 </head>
