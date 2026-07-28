@@ -4,22 +4,28 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Terra Console</title>
-<meta name="theme-color" content="#f5f5f4"/>
+<meta name="theme-color" content="#f6f7f8"/>
 <link rel="icon" href="/assets/icon.png"/>
 <link rel="apple-touch-icon" href="/assets/icon.png"/>
 <meta property="og:title" content="Terra — closed-loop control for living systems"/>
 <meta property="og:description" content="Bayesian biogeochemical control on the edge. From a fish farm to a habitat."/>
 <meta property="og:image" content="/assets/og.jpg"/>
 <meta name="twitter:card" content="summary_large_image"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 :root{
-  --bg:#f5f5f4;--panel:#ffffff;--fill:#efefec;--fill2:#e8e8e4;--line:rgba(0,0,0,.08);--line2:rgba(0,0,0,.16);
-  --ink:#1c1c1e;--sec:#6e6e73;--muted:#a1a1a6;--knob:#ffffff;--radius:10px;
-  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+  --bg:#f6f7f8;--panel:#ffffff;--fill:#f0f2f4;--fill2:#e6e9ec;--line:rgba(15,23,42,.09);--line2:rgba(15,23,42,.15);
+  --ink:#0f172a;--sec:#586372;--muted:#97a1ad;--knob:#ffffff;--radius:10px;
+  --accent:#0e7c5a;--accent-ink:#0a5c43;--accent-soft:#e7f4ef;--ring:rgba(14,124,90,.30);
+  --shadow:0 1px 2px rgba(15,23,42,.05),0 6px 16px rgba(15,23,42,.055);
+  --ok:#0e7c5a;--warn:#a86610;--alert:#b23b3b;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
 }
-[data-theme="dark"]{--bg:#0b0b0c;--panel:#161618;--fill:#1e1e21;--fill2:#2b2b2f;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.20);--ink:#f2f2f2;--sec:#98989e;--muted:#6b6b70;--knob:#0b0b0c;}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0b0c;--panel:#161618;--fill:#1e1e21;--fill2:#2b2b2f;--line:rgba(255,255,255,.10);--line2:rgba(255,255,255,.20);--ink:#f2f2f2;--sec:#98989e;--muted:#6b6b70;--knob:#0b0b0c;}}
+[data-theme="dark"]{--bg:#0b0d10;--panel:#14171b;--fill:#1b1f24;--fill2:#262b31;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.17);--ink:#eef1f4;--sec:#9aa4af;--muted:#6b7480;--knob:#0b0d10;--accent:#3fbf8f;--accent-ink:#5fd0a0;--accent-soft:rgba(63,191,143,.14);--ring:rgba(63,191,143,.4);--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.38);--ok:#3fbf8f;--warn:#d99a3a;--alert:#e07070;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0d10;--panel:#14171b;--fill:#1b1f24;--fill2:#262b31;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.17);--ink:#eef1f4;--sec:#9aa4af;--muted:#6b7480;--knob:#0b0d10;--accent:#3fbf8f;--accent-ink:#5fd0a0;--accent-soft:rgba(63,191,143,.14);--ring:rgba(63,191,143,.4);--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.38);--ok:#3fbf8f;--warn:#d99a3a;--alert:#e07070;}}
 [data-density="compact"] body{font-size:13px}
 [data-density="compact"] .card{padding:13px 14px}
 [data-density="compact"] .mc{padding:9px 12px}
@@ -168,6 +174,34 @@ canvas{width:100%;display:block}
   .card table{display:block;overflow-x:auto;white-space:nowrap}
   .mcards{grid-template-columns:1fr 1fr}
 }
+/* ---- enterprise UI pass: elevation, brand accent, focus, status ---- */
+body{letter-spacing:-.005em}
+h1{font-weight:600;letter-spacing:-.022em}
+.card{box-shadow:var(--shadow)}
+.card h3{letter-spacing:-.01em}
+.mc{border:0.5px solid var(--line)}
+.btn{transition:background .15s,border-color .15s,box-shadow .15s,transform .05s}
+.btn:active{transform:translateY(.5px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.btn.primary:hover{background:var(--accent-ink);border-color:var(--accent-ink);opacity:1}
+.field{transition:border-color .15s,box-shadow .15s}
+.field:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:6px}
+th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--muted)}
+.pill{box-shadow:var(--shadow)}
+.pill.live .b{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.brand .dot.on{background:var(--accent)}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.toggle.on .sw{background:var(--accent)}
+.side .brand .dot.on{background:var(--accent);box-shadow:0 0 8px color-mix(in srgb,var(--accent) 70%,transparent)}
+.side .nav button.active{box-shadow:inset 2px 0 0 var(--accent)}
+.tag.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 34%,transparent)}
+.tag.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 34%,transparent)}
+.tag.alert{color:var(--alert);border-color:color-mix(in srgb,var(--alert) 34%,transparent)}
+.ev.ALERT .lv{color:var(--alert);font-weight:500}
+.ev.WARN .lv{color:var(--warn)}
+.banner{box-shadow:var(--shadow)}
 </style>
 </head>
 <body>
