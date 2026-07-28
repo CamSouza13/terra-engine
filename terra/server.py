@@ -273,6 +273,10 @@ class Platform:
         with self.lock():
             self._load_text(text, name)
             self.cycles = 0
+            # Replay the whole log now so the dashboard reflects it immediately,
+            # even where no continuous background loop runs (e.g. serverless).
+            for _ in range(min(len(self.rows), 5000)):
+                self._step()
 
     def lock(self):
         if not hasattr(self, "_lock"):
