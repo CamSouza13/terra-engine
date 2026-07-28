@@ -98,6 +98,9 @@ jobs:
       - name: Run self-healing mesh tests
         run: python tests/test_mesh.py
 
+      - name: Run hardware-integration tests (bridge + adapters)
+        run: python tests/test_integrations.py
+
       - name: Smoke-test the demo (no plots)
         run: python scripts/run_demo.py --no-plot
 

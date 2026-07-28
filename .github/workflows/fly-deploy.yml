@@ -1,13 +1,10 @@
-# See https://fly.io/docs/app-guides/continuous-deployment-with-github-actions/
-# Deploys only when a FLY_API_TOKEN secret is configured. Without it the job
-# succeeds and skips the deploy, so a repo with no Fly secret does not fail CI
-# on every push. Add the secret in repo Settings -> Secrets to enable CD.
+# Manual-only. The project deploys via Vercel, not Fly. This workflow no longer
+# runs on push (so it can't fail CI or send failure emails); run it by hand from
+# the Actions tab only if you deliberately want a Fly deploy, and only after a
+# FLY_API_TOKEN secret is configured and the Fly app has billing set up.
 
 name: Fly Deploy
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
