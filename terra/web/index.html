@@ -205,10 +205,11 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
 /* ---- plain-language system-status hero ---- */
 .statusHero{display:flex;align-items:center;gap:22px;padding:20px 24px}
 .statusHero.ok{--sh:var(--ok)}.statusHero.warn{--sh:var(--warn)}.statusHero.alert{--sh:var(--alert)}.statusHero.idle{--sh:var(--muted)}
-.shRing{position:relative;width:92px;height:92px;flex:0 0 auto}
-.shRing svg{width:92px;height:92px;transition:stroke-dashoffset .6s ease}
-#shArc{transition:stroke-dashoffset .7s cubic-bezier(.2,.7,.2,1)}
-.shPct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;font-variant-numeric:tabular-nums}
+.shMeter{flex:0 0 auto;width:132px}
+.shPct{font-weight:600;font-size:30px;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;color:var(--sh)}
+.statusHero.idle .shPct{color:var(--muted)}
+.shTrack{height:4px;background:var(--fill);margin-top:10px;overflow:hidden}
+.shTrack>span{display:block;height:100%;width:0;background:var(--sh);transition:width .6s cubic-bezier(.2,.7,.2,1)}
 .shBody{flex:1;min-width:0}
 .shTag{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .shVerdict{font-size:19px;font-weight:600;letter-spacing:-.015em;margin-top:3px;color:var(--sh)}
@@ -235,7 +236,6 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
 .nav button .nvi{flex:0 0 auto;opacity:.82}
 .nav button.active .nvi{opacity:1;color:var(--accent)}
 .side .nav button.active .nvi{color:var(--accent)}
-@media(min-width:760px){.shGlyph{display:block}}
 /* ---- enterprise polish v2 ---- */
 .card{padding:20px 22px}
 .card h3{font-size:13.5px;font-weight:600;letter-spacing:.005em}
@@ -243,8 +243,7 @@ th{text-transform:uppercase;letter-spacing:.055em;font-size:10.5px;color:var(--m
 .mc::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent 72%);opacity:.5}
 .mc .v{font-size:24px;letter-spacing:-.012em}
 .statusHero{padding:24px 26px}
-.shRing{width:104px;height:104px}.shRing svg{width:104px;height:104px}
-.shGlyph{width:92px;height:92px}.shGlyph svg{width:92px;height:92px}
+.shMeter{width:150px}.shPct{font-size:34px}
 table tbody tr:hover td{background:var(--fill)}
 th{border-bottom-color:var(--line2)}
 /* status pills (fleet, connection, etc.) */
@@ -258,6 +257,15 @@ th{border-bottom-color:var(--line2)}
 .empty svg{width:34px;height:34px;opacity:.5;margin-bottom:10px}
 .side{border-right:1px solid rgba(255,255,255,.06)}
 @media(max-width:560px){.statusHero{flex-direction:column;text-align:center;align-items:center}.shChips{justify-content:center}}
+/* ---- enterprise de-bubble pass: squared tags, no pill/circle candy, wordmark only ---- */
+.pill,.chip,.tag,.st{border-radius:3px}
+.shChip{border-radius:3px;background:transparent;border:0.5px solid var(--line);padding:5px 10px}
+.vchip{border-radius:3px;background:transparent!important;padding:2px 0;color:var(--sec)}
+.pill .b,.st::before,.shChip .d{border-radius:0}
+.ttip{border-radius:2px}
+.brand .dot{display:none}
+.shGlyph{display:none!important}
+.nav button .nvi{display:none}
 </style>
 </head>
 <body>
@@ -325,12 +333,9 @@ th{border-bottom-color:var(--line2)}
         <a class="btn sm" href="/pricing" id="ovUpgrade" style="display:none">Upgrade</a>
       </div>
       <div class="card statusHero idle" id="ovStatus" style="margin-top:14px">
-        <div class="shRing">
-          <svg viewBox="0 0 96 96" aria-hidden="true">
-            <circle cx="48" cy="48" r="42" fill="none" stroke="var(--fill2)" stroke-width="7"/>
-            <circle id="shArc" cx="48" cy="48" r="42" fill="none" stroke="var(--sh,var(--muted))" stroke-width="7" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" transform="rotate(-90 48 48)"/>
-          </svg>
+        <div class="shMeter">
           <div class="shPct" id="shPct">—</div>
+          <div class="shTrack"><span id="shArc"></span></div>
         </div>
         <div class="shBody">
           <div class="shTag" id="shTag">System status</div>
@@ -342,7 +347,6 @@ th{border-bottom-color:var(--line2)}
             <span class="shChip">Open alerts <b id="shAlerts">0</b></span>
           </div>
         </div>
-        <div class="shGlyph" id="shGlyph"></div>
       </div>
       <div class="card" id="ovOnboard" style="display:none;margin-top:14px"></div>
       <div class="mcards" id="ovCards" style="margin-top:14px"></div>
@@ -832,7 +836,7 @@ function wstep(n,title,done,locked,body){
   const mark=done?"✓":n, tag=locked?'<span class="hint" style="color:var(--sec)">Pro</span>':(done?'<span class="hint" style="color:var(--sec)">done</span>':'');
   return `<div class="card" style="margin-bottom:12px${locked?';opacity:.75':''}">
     <div style="display:flex;gap:12px;align-items:flex-start">
-      <span style="flex:0 0 auto;width:24px;height:24px;border-radius:50%;border:1.5px solid ${done?'var(--ink)':'var(--line2)'};background:${done?'var(--ink)':'transparent'};color:var(--bg);font-size:12px;display:flex;align-items:center;justify-content:center">${mark}</span>
+      <span style="flex:0 0 auto;width:24px;height:24px;border-radius:3px;border:1.5px solid ${done?'var(--ink)':'var(--line2)'};background:${done?'var(--ink)':'transparent'};color:var(--bg);font-size:12px;display:flex;align-items:center;justify-content:center">${mark}</span>
       <div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center"><b>${title}</b>${tag}</div>${body}</div>
     </div></div>`;
 }
@@ -922,8 +926,7 @@ function renderStatus(o){
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
   set("shVerdict",verdict);set("shSub",sub);set("shPct",live?Math.round(pct*100)+"%":"—");
   set("shNodes",o.nodes_live||0);set("shModel",o.calibrated?"tuned":(live?"yes":"—"));set("shAlerts",(o.recent_alerts||[]).length);
-  const arc=document.getElementById("shArc");if(arc)arc.style.strokeDashoffset=String(264*(1-pct));
-  const g=document.getElementById("shGlyph");if(g)g.innerHTML=DOMGLYPH[o.domain]||DOMGLYPH.aquaculture;
+  const arc=document.getElementById("shArc");if(arc)arc.style.width=(live?Math.round(pct*100):0)+"%";
 }
 const NAVICONS={start:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',overview:'M3 3h8v6H3zM13 3h8v10h-8zM3 11h8v10H3zM13 15h8v6h-8z',setup:'M4 7h16v14H4zM9 3h6v4H9M8 11h.01M12 11h.01M16 11h.01',connect:'M7 8a4 4 0 0 0 0 8h3M17 8a4 4 0 0 1 0 8h-3M8 12h8',domain:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',calib:'M4 8h16M8 5v14M14 10v10M4 16h4M14 16h6',dash:'M3 12h4l3 8 4-16 3 8h4',fleet:'M4 5h16v5H4zM4 14h16v5H4zM8 7.5h.01M8 16.5h.01',alerts:'M12 4a5 5 0 0 0-5 5v3l-2 3h14l-2-3V9a5 5 0 0 0-5-5zM10 20a2 2 0 0 0 4 0',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3',order:'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7',support:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.8.4-1 .8-1 1.6M12 16h.01'};
 function paintNavIcons(){
@@ -938,7 +941,7 @@ function paintNavIcons(){
     b.insertBefore(s,b.firstChild);
   });
 }
-paintNavIcons();
+/* nav is text-only (wordmark, no icon marks) — paintNavIcons intentionally unused */
 
 /* ---- Connect your hardware: build a `terra bridge` config ---- */
 let CX={systems:[],canonical:[],sys:null,wired:false};
@@ -1074,7 +1077,7 @@ function renderOnboard(o){
   el2.innerHTML=`<h3>Get started <span class="hint" style="font-weight:400">· ${done} of 3</span></h3>`+
     `<div class="desc">A few steps to a loop that watches itself.</div>`+
     steps.map(s=>`<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:0.5px solid var(--line)">
-      <span style="width:18px;height:18px;border-radius:50%;border:1.5px solid ${s.done?'var(--ink)':'var(--line2)'};background:${s.done?'var(--ink)':'transparent'};color:var(--bg);font-size:11px;display:flex;align-items:center;justify-content:center">${s.done?'✓':''}</span>
+      <span style="width:18px;height:18px;border-radius:3px;border:1.5px solid ${s.done?'var(--ink)':'var(--line2)'};background:${s.done?'var(--ink)':'transparent'};color:var(--bg);font-size:11px;display:flex;align-items:center;justify-content:center">${s.done?'✓':''}</span>
       <span style="flex:1"><b style="${s.done?'text-decoration:line-through;color:var(--sec)':''}">${s.t}</b><div class="hint">${s.d}</div></span>
       ${s.done?'':`<button class="btn sm" onclick="show('${s.go}')">Do it</button>`}
     </div>`).join("");
