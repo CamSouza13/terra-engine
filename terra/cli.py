@@ -214,6 +214,63 @@ def cmd_node(args) -> int:
     return 0
 
 
+def _load_bridge_cfg(path: str) -> dict:
+    import json
+    text = open(path).read()
+    if path.endswith((".yaml", ".yml")):
+        try:
+            import yaml
+            return yaml.safe_load(text)
+        except ImportError:
+            raise SystemExit("YAML config needs pyyaml (pip install pyyaml), "
+                             "or use a .json config")
+    return json.loads(text)
+
+
+def cmd_bridge(args) -> int:
+    import os
+    from terra import integrations as I
+
+    if args.list:
+        for s in I.describe_systems():
+            print(f"{s['id']:20} {s['vendor']} {s['model']:26} "
+                  f"[{s['transport']:6}] {', '.join(s['params'])}")
+        return 0
+    if not args.config:
+        raise SystemExit("terra bridge needs --config <file.json|yaml> (or --list)")
+
+    cfg = _load_bridge_cfg(args.config)
+    spec, _ = _get_domain(args.domain).simulate()
+
+    if args.check:
+        probes = I.build_probes(cfg)
+        ok = True
+        for ch, probe in probes.items():
+            try:
+                val = probe.read()
+                norm = I.normalize_param(ch) or ch
+                print(f"  [ok ] {ch:8} = {val:.4g}   -> channel {norm}")
+            except Exception as e:  # noqa: BLE001 - report any wiring failure
+                ok = False
+                print(f"  [FAIL] {ch:8} : {e}")
+        print("bridge check:", "PASS" if ok else "FAIL")
+        return 0 if ok else 1
+
+    from terra.node import NodeRunner, NodeConfig
+    from terra.core import EngineConfig
+    driver = I.build_bridge(spec, cfg, max_cycles=args.cycles)
+    runner = NodeRunner(
+        spec, driver,
+        NodeConfig(state_path=os.environ.get("TERRA_STATE", "terra_node_state.json"),
+                   max_cycles=args.cycles),
+        engine_config=EngineConfig(outlier_sigma=5.0, track_bias=True,
+                                   cusum_threshold=8.0))
+    print(f"bridging {cfg.get('system', cfg.get('transport'))} -> {args.domain} engine")
+    runner.run(on_event=lambda ev: print(f"  {ev[0]:6.1f} h  {ev[1]:5}  {ev[2]}"),
+               banner=True)
+    return 0
+
+
 def cmd_serve(args) -> int:
     from terra.server import serve
     return serve(domain=args.domain, port=args.port, autonomy=args.autonomy)
@@ -272,6 +329,17 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("--offline", action="store_true",
                    help="run from the saved config bundle with no network access")
     n.set_defaults(func=cmd_node)
+
+    br = sub.add_parser("bridge",
+                        help="stream existing sensor hardware into the engine")
+    br.add_argument("--config", help="bridge config (.json or .yaml)")
+    br.add_argument("--domain", default="aquaculture")
+    br.add_argument("--list", action="store_true", help="list supported systems")
+    br.add_argument("--check", action="store_true",
+                    help="read each probe once and print the value")
+    br.add_argument("--cycles", type=int, default=None,
+                    help="stop after N cycles (default: run continuously)")
+    br.set_defaults(func=cmd_bridge)
 
     s = sub.add_parser("serve", help="serve the live engine API + web console")
     s.add_argument("--domain", default="aquaculture")

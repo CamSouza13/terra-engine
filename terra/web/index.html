@@ -308,7 +308,7 @@ th{border-bottom-color:var(--line2)}
 
     <div class="banner" id="verifyBanner" style="display:none">Please confirm your email address. <a href="#" id="resendVerify" style="color:var(--ink)">Resend link</a> · <span id="resendMsg"></span></div>
 
-    <div class="banner" id="offlineBanner" style="display:none">Not connected to a node. Start the engine with <code>terra serve</code> and reload, or enter a node URL below.</div>
+    <div class="banner" id="offlineBanner" style="display:none">No live node yet — that's fine. Upload a historical sensor CSV under <a href="#" onclick="show('calib');return false" style="color:var(--ink);font-weight:600">Calibrate → Data</a> and the engine will analyze it. Connect a live node when you have one.</div>
 
     <section class="view active" id="v-start">
       <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
@@ -349,6 +349,7 @@ th{border-bottom-color:var(--line2)}
         <div class="card"><h3>Recent alerts</h3><div class="events" id="ovAlerts" style="margin-top:8px"></div></div>
         <div class="card"><h3>Quick actions</h3>
           <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:10px">
+            <button class="btn sm primary" onclick="show('calib')">Upload a sensor log</button>
             <button class="btn sm" onclick="show('dash')">Live dashboard</button>
             <button class="btn sm" onclick="show('fleet')">Fleet</button>
             <button class="btn sm" onclick="show('calib')">Calibrate</button>
@@ -366,7 +367,7 @@ th{border-bottom-color:var(--line2)}
     <section class="view" id="v-setup">
       <div class="card" style="margin-bottom:12px">
         <h3>Node connection <span class="tag" id="connTag">—</span></h3>
-        <div class="desc">This console is a client for a running node (<code style="font-family:var(--mono)">terra serve</code>). It shows only what the engine computes.</div>
+        <div class="desc">This console is a client for a running node (<code style="font-family:var(--mono)">terra serve</code>). It shows only what the engine computes. A node can read your existing sensors — In-Situ Aqua TROLL, YSI EXO, Hach, Atlas Scientific, OxyGuard, Point Four — over Modbus, SDI-12, MQTT or a cloud API (<code style="font-family:var(--mono)">terra bridge</code>); no Terra-specific probes required.</div>
         <div class="row">
           <input id="nodeUrl" class="field" placeholder="http://terra-node.local:8700" style="flex:1;min-width:220px">
           <button class="btn sm" id="btnConnect">Connect</button>
@@ -406,7 +407,7 @@ th{border-bottom-color:var(--line2)}
     <section class="view" id="v-calib">
       <div class="grid g2">
         <div class="card">
-          <h3>Data</h3><div class="desc">Ingest a real logged CSV (timestamp and channel columns). The engine replays it and stores every estimate.</div>
+          <h3>Data</h3><div class="desc">Ingest a real logged CSV (timestamp and channel columns) — including exports from In-Situ, YSI, Hach and other systems. The engine replays it and stores every estimate. To stream live from those instruments, use <code style="font-family:var(--mono)">terra bridge</code>.</div>
           <label class="drop" id="drop" for="fileIn">Choose a CSV log to ingest</label>
           <input id="fileIn" type="file" accept=".csv" style="display:none">
           <div class="row" style="margin-top:12px"><button class="btn sm" id="btnExport">Download stored data</button></div>
@@ -847,7 +848,7 @@ function renderStatus(o){
   const hasAlert=A.some(s=>/ALERT/i.test(s)), hasWarn=A.some(s=>/WARN/i.test(s));
   const live=(o.nodes_live||0)>0||o.running;
   let cls,pct,verdict,sub;
-  if(!live){cls="idle";pct=0;verdict="Bring your system online";sub="Connect a node and Terra starts watching the whole system, not one sensor at a time.";}
+  if(!live){cls="idle";pct=0;verdict="Upload a sensor log to see Terra work";sub="No hardware needed to start. Drop in a historical CSV — timestamps and channel readings — and the engine replays it, infers the hidden state, and forecasts breaches. Connect a live node later.";}
   else if(hasAlert){cls="alert";pct=.30;verdict="Action needed";sub="Terra forecasts a safety limit may be crossed soon. Open Alerts to see what, and how long you have.";}
   else if(hasWarn){cls="warn";pct=.66;verdict="Keep an eye on it";sub="Something is drifting. Terra is watching closely and will warn you with time to act.";}
   else{cls="ok";pct=1;verdict="All clear";sub="Your system is healthy and being watched. You'll hear from Terra before anything goes wrong.";}
