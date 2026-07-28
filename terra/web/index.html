@@ -270,6 +270,7 @@ th{border-bottom-color:var(--line2)}
       <button data-v="start" class="active">Get started</button>
       <button data-v="overview">Overview</button>
       <button data-v="setup"><span class="n">1</span>Hardware</button>
+      <button data-v="connect">Connect your hardware</button>
       <button data-v="domain"><span class="n">2</span>Domain &amp; sensors</button>
       <button data-v="calib"><span class="n">3</span>Calibration &amp; data</button>
       <button data-v="dash"><span class="n">4</span>Live dashboard</button>
@@ -385,6 +386,54 @@ th{border-bottom-color:var(--line2)}
         <h3>Bill of materials <span class="tag g" id="bomTotalTag"></span></h3>
         <div class="desc">Reference spec at cost. Saved to node config when selected.</div>
         <table><thead><tr><th>Item</th><th>Detail</th><th class="r">Unit</th></tr></thead><tbody id="bom"></tbody></table>
+      </div>
+    </section>
+
+    <section class="view" id="v-connect">
+      <div class="grid g2">
+        <div class="card">
+          <h3>1 · Choose your system</h3>
+          <div class="desc">Terra reads the instruments you already run — no Terra-specific probes required.</div>
+          <select id="cxSystem" class="field" style="margin-top:10px;width:100%"></select>
+          <div class="hint" id="cxMeta" style="margin-top:10px;color:var(--ink)"></div>
+          <div class="row" style="margin-top:10px;gap:8px;align-items:center">
+            <span class="label" style="margin:0">Transport</span>
+            <select id="cxTransport" class="field" style="width:auto">
+              <option value="modbus">Modbus (TCP / RS-485)</option>
+              <option value="sdi12">SDI-12</option>
+              <option value="mqtt">MQTT</option>
+              <option value="http">Cloud / REST (JSON)</option>
+              <option value="i2c">I2C (Atlas EZO)</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <h3>2 · Connection</h3>
+          <div class="desc">Where the node reaches the hardware. Credentials go in headers, never the URL.</div>
+          <div id="cxConn" style="margin-top:10px;display:grid;gap:8px"></div>
+          <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap">
+            <label class="label" style="margin:0">Poll every (s)<input id="cxPoll" class="field" type="number" value="60" style="width:90px;margin-left:8px"></label>
+            <label class="label" style="margin:0">Process input u<input id="cxU" class="field" value="1.8, 1.0" style="width:120px;margin-left:8px"></label>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>3 · Map channels</h3>
+        <div class="desc">Tick the channels your system reports and give Terra where to read each. Values normalize onto the engine's channels automatically.</div>
+        <table style="margin-top:10px"><thead><tr><th style="width:34px"></th><th>Channel</th><th id="cxColA">Register</th><th id="cxColB">Type</th></tr></thead><tbody id="cxChannels"></tbody></table>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">4 · Generated bridge config</h3>
+          <div class="row" style="gap:8px">
+            <div class="toggle" id="cxFmt"><span>JSON</span><span class="sw"></span></div>
+            <button class="btn sm" id="cxCopy">Copy</button>
+          </div>
+        </div>
+        <div class="desc" style="margin-top:8px">Save as <code style="font-family:var(--mono)">farm.yaml</code>, verify wiring, then stream live:</div>
+        <pre id="cxOut" style="margin-top:8px;padding:14px;background:var(--fill);border-radius:10px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5"></pre>
+        <div class="hint" style="margin-top:8px;font-family:var(--mono);color:var(--ink)">terra bridge --config farm.yaml --check   <span style="color:var(--muted)"># then drop --check to run</span></div>
+        <div class="hint" id="cxCopied" style="margin-top:6px"></div>
       </div>
     </section>
 
@@ -693,6 +742,7 @@ function drawChart(hist){const cv=$("#chart");if(!cv||!S.cfg||!hist||hist.length
 
 const META={start:["Get started","Buy, configure, install, test, and run your node — step by step."],
   setup:["Node hardware","Live from the running node. Every value is computed by the engine and stored on disk."],
+  connect:["Connect your hardware","Point Terra at the sensors you already run. Pick your system, map the channels, and generate a bridge config."],
   domain:["Domain & sensors","Reconfigure the running engine: domain, wired channels, and safety limits."],
   calib:["Calibration & data","Ingest real logs and run the real NUTS fit; results are applied to the engine."],
   dash:["Live dashboard","The running engine: real telemetry, the inferred hidden state, forecast, and events."],
@@ -702,7 +752,7 @@ const META={start:["Get started","Buy, configure, install, test, and run your no
   overview:["Overview","What you have running: nodes, calibration, alerts, and your plan."],
   order:["Order parts","Configure a node and request a build. We calibrate and ship it enrollment-ready."],
   support:["Support","Ask for help. Pro and Fleet get priority response."]};
-function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="start")loadStart();if(v==="overview")loadOverview();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();loadTeam();}if(v==="order"||v==="support")prefillEmail();}
+function show(v){document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#v-"+v).classList.add("active");document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));const m=META[v];$("#title").textContent=m[0];$("#subtitle").textContent=m[1];if(v==="start")loadStart();if(v==="overview")loadOverview();if(v==="connect")loadConnect();if(v==="fleet")loadFleet();if(v==="alerts")loadAlerts();if(v==="settings"){loadKeys();loadAudit();loadTeam();}if(v==="order"||v==="support")prefillEmail();}
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.v));
 $("#btnConnect").onclick=()=>{const u=$("#nodeUrl").value.trim();connect(u||$("#nodeUrl").placeholder);};
 $("#btnPause").onclick=()=>{S.paused=!S.paused;$("#btnPause").textContent=S.paused?"Resume view":"Pause view";};
@@ -859,7 +909,7 @@ function renderStatus(o){
   const arc=document.getElementById("shArc");if(arc)arc.style.strokeDashoffset=String(264*(1-pct));
   const g=document.getElementById("shGlyph");if(g)g.innerHTML=DOMGLYPH[o.domain]||DOMGLYPH.aquaculture;
 }
-const NAVICONS={start:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',overview:'M3 3h8v6H3zM13 3h8v10h-8zM3 11h8v10H3zM13 15h8v6h-8z',setup:'M4 7h16v14H4zM9 3h6v4H9M8 11h.01M12 11h.01M16 11h.01',domain:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',calib:'M4 8h16M8 5v14M14 10v10M4 16h4M14 16h6',dash:'M3 12h4l3 8 4-16 3 8h4',fleet:'M4 5h16v5H4zM4 14h16v5H4zM8 7.5h.01M8 16.5h.01',alerts:'M12 4a5 5 0 0 0-5 5v3l-2 3h14l-2-3V9a5 5 0 0 0-5-5zM10 20a2 2 0 0 0 4 0',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3',order:'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7',support:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.8.4-1 .8-1 1.6M12 16h.01'};
+const NAVICONS={start:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',overview:'M3 3h8v6H3zM13 3h8v10h-8zM3 11h8v10H3zM13 15h8v6h-8z',setup:'M4 7h16v14H4zM9 3h6v4H9M8 11h.01M12 11h.01M16 11h.01',connect:'M7 8a4 4 0 0 0 0 8h3M17 8a4 4 0 0 1 0 8h-3M8 12h8',domain:'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',calib:'M4 8h16M8 5v14M14 10v10M4 16h4M14 16h6',dash:'M3 12h4l3 8 4-16 3 8h4',fleet:'M4 5h16v5H4zM4 14h16v5H4zM8 7.5h.01M8 16.5h.01',alerts:'M12 4a5 5 0 0 0-5 5v3l-2 3h14l-2-3V9a5 5 0 0 0-5-5zM10 20a2 2 0 0 0 4 0',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3',order:'M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7',support:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.8.4-1 .8-1 1.6M12 16h.01'};
 function paintNavIcons(){
   document.querySelectorAll("#nav button[data-v]").forEach(b=>{
     if(b.querySelector(".nvi"))return;
@@ -873,6 +923,105 @@ function paintNavIcons(){
   });
 }
 paintNavIcons();
+
+/* ---- Connect your hardware: build a `terra bridge` config ---- */
+let CX={systems:[],canonical:[],sys:null,wired:false};
+async function loadConnect(){
+  if(!CX.systems.length){
+    try{const r=await api("/api/integrations");CX.systems=r.systems||[];CX.canonical=r.canonical||[];}
+    catch(e){CX.systems=[];}
+    $("#cxSystem").innerHTML=CX.systems.map(s=>`<option value="${s.id}">${s.vendor} · ${s.model}</option>`).join("");
+  }
+  if(!CX.wired){
+    CX.wired=true;
+    $("#cxSystem").onchange=()=>cxPickSystem($("#cxSystem").value);
+    $("#cxTransport").onchange=()=>{cxRenderConn();cxRenderChannels();cxRender();};
+    $("#cxPoll").oninput=cxRender;$("#cxU").oninput=cxRender;
+    $("#cxFmt").onclick=()=>{$("#cxFmt").classList.toggle("on");cxRender();};
+    $("#cxCopy").onclick=cxCopy;
+  }
+  if(!CX.sys){const first=$("#cxSystem").value||(CX.systems[0]&&CX.systems[0].id);if(first)cxPickSystem(first);}
+}
+function cxSys(id){return CX.systems.find(s=>s.id===id);}
+function cxPickSystem(id){
+  const s=cxSys(id);if(!s)return;CX.sys=s;$("#cxSystem").value=id;
+  $("#cxMeta").innerHTML=`<b>${s.vendor} ${s.model}</b> — ${(s.buses||[]).join(" · ")}. <span style="color:var(--sec)">${s.notes||""}</span>`;
+  $("#cxTransport").value=s.transport;
+  cxRenderConn();cxRenderChannels();cxRender();
+}
+function cxField(label,id,val,ph,type){
+  return `<label class="label" style="margin:0;display:flex;flex-direction:column;gap:4px;font-weight:600">${label}`
+    +`<input id="${id}" class="field" ${type?`type="${type}"`:""} value="${val==null?"":val}" placeholder="${ph||""}" style="font-weight:400"></label>`;
+}
+function cxRenderConn(){
+  const t=$("#cxTransport").value;let h="";
+  if(t==="modbus")h=cxField("Host / IP","cxHost","","10.0.0.20")+cxField("Port","cxPort","502","","number")+cxField("Unit id","cxUnit","1","","number")+cxField("Serial port (RS-485, optional)","cxSerial","","/dev/ttyUSB0");
+  else if(t==="sdi12")h=cxField("Serial port","cxSerial","/dev/ttyUSB0","")+cxField("Baudrate","cxBaud","1200","","number");
+  else if(t==="mqtt")h=cxField("Broker host","cxHost","broker.local","")+cxField("Port","cxPort","1883","","number");
+  else if(t==="http")h=cxField("Auth header (optional)","cxHeaders","","Authorization: Bearer <token>")+cxField("Base URL (optional)","cxUrlBase","","https://api.example.com/...");
+  else if(t==="i2c")h=cxField("I2C bus","cxBus","1","","number");
+  $("#cxConn").innerHTML=h;
+  $("#cxConn").querySelectorAll("input").forEach(i=>i.oninput=cxRender);
+}
+function cxRenderChannels(){
+  const t=$("#cxTransport").value;const params=(CX.sys&&CX.sys.params)||CX.canonical;
+  const cols={modbus:["Register","Type"],sdi12:["Address","Index"],mqtt:["Topic","JSON path"],http:["URL","JSON path"],i2c:["I2C address",""]};
+  $("#cxColA").textContent=cols[t][0];$("#cxColB").textContent=cols[t][1];
+  const tb=$("#cxChannels");tb.innerHTML="";
+  const dflt=["DO","TAN","NO2","NO3","pH","temp"];
+  params.forEach((ch,idx)=>{
+    let a="",b="";
+    if(t==="modbus"){a=`<input class="field cxA" data-ch="${ch}" placeholder="e.g. 5450" style="width:130px">`;b=`<select class="field cxB" data-ch="${ch}" style="width:120px"><option>float32</option><option>float64</option><option>int16</option><option>uint16</option><option>int32</option><option>uint32</option></select>`;}
+    else if(t==="sdi12"){a=`<input class="field cxA" data-ch="${ch}" value="0" style="width:80px">`;b=`<input class="field cxB" data-ch="${ch}" type="number" value="${idx}" style="width:80px">`;}
+    else if(t==="mqtt"){a=`<input class="field cxA" data-ch="${ch}" placeholder="farm/tank1/${ch.toLowerCase()}" style="width:200px">`;b=`<input class="field cxB" data-ch="${ch}" placeholder="value" style="width:120px">`;}
+    else if(t==="http"){a=`<input class="field cxA" data-ch="${ch}" placeholder="https://.../data" style="width:210px">`;b=`<input class="field cxB" data-ch="${ch}" placeholder="parameters.${ch}.value" style="width:160px">`;}
+    else if(t==="i2c"){a=`<input class="field cxA" data-ch="${ch}" placeholder="0x61" style="width:110px">`;b="";}
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><input type="checkbox" class="cxEn" data-ch="${ch}" ${dflt.includes(ch)?"checked":""}></td><td><b>${ch}</b></td><td>${a}</td><td>${b}</td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("input,select").forEach(i=>{i.oninput=cxRender;i.onchange=cxRender;});
+}
+function cxVal(id){const e=$("#"+id);return e?String(e.value).trim():"";}
+function cxBuildConfig(){
+  const t=$("#cxTransport").value;const conn={};
+  if(t==="modbus"){if(cxVal("cxHost"))conn.host=cxVal("cxHost");if(cxVal("cxPort"))conn.port=+cxVal("cxPort");if(cxVal("cxUnit"))conn.unit=+cxVal("cxUnit");if(cxVal("cxSerial"))conn.serial_port=cxVal("cxSerial");}
+  else if(t==="sdi12"){if(cxVal("cxSerial"))conn.serial_port=cxVal("cxSerial");if(cxVal("cxBaud"))conn.baudrate=+cxVal("cxBaud");}
+  else if(t==="mqtt"){conn.host=cxVal("cxHost")||"localhost";if(cxVal("cxPort"))conn.port=+cxVal("cxPort");}
+  else if(t==="http"){const hdr=cxVal("cxHeaders");if(hdr){const ix=hdr.indexOf(":");if(ix>0)conn.headers={[hdr.slice(0,ix).trim()]:hdr.slice(ix+1).trim()};}if(cxVal("cxUrlBase"))conn.url=cxVal("cxUrlBase");}
+  else if(t==="i2c"){if(cxVal("cxBus"))conn.bus=+cxVal("cxBus");}
+  const channels={};
+  document.querySelectorAll(".cxEn").forEach(cb=>{
+    if(!cb.checked)return;const ch=cb.dataset.ch;
+    const a=document.querySelector('.cxA[data-ch="'+ch+'"]'),b=document.querySelector('.cxB[data-ch="'+ch+'"]');
+    const av=a?String(a.value).trim():"",bv=b?String(b.value).trim():"";const o={};
+    if(t==="modbus"){if(av)o.register=+av;if(bv)o.data_type=bv;}
+    else if(t==="sdi12"){o.address=av||"0";if(bv!=="")o.index=+bv;}
+    else if(t==="mqtt"){if(av)o.topic=av;if(bv)o.path=bv;}
+    else if(t==="http"){if(av)o.url=av;if(bv)o.path=bv;}
+    else if(t==="i2c"){if(av)o.address=av;}
+    channels[ch]=o;
+  });
+  const cfg={system:CX.sys?CX.sys.id:"generic_"+t,transport:t};
+  if(Object.keys(conn).length)cfg.connection=conn;
+  cfg.channels=channels;
+  const u=cxVal("cxU");if(u){const parts=u.split(",").map(s=>parseFloat(s.trim())).filter(x=>!isNaN(x));if(parts.length===1)cfg.u=parts[0];else if(parts.length>1)cfg.u=parts;}
+  const poll=cxVal("cxPoll");if(poll)cfg.poll_interval_s=+poll;
+  return cfg;
+}
+function cxYaml(cfg){
+  const L=[];L.push("system: "+cfg.system);L.push("transport: "+cfg.transport);
+  if(cfg.connection){L.push("connection:");for(const k in cfg.connection){const v=cfg.connection[k];if(k==="headers"){L.push("  headers:");for(const hk in v)L.push('    '+hk+': "'+v[hk]+'"');}else L.push("  "+k+": "+v);}}
+  L.push("channels:");
+  if(!Object.keys(cfg.channels).length)L.push("  # tick at least one channel above");
+  for(const ch in cfg.channels){const o=cfg.channels[ch];const p=Object.keys(o).map(k=>k+": "+(typeof o[k]==="string"?'"'+o[k]+'"':o[k]));L.push("  "+ch+": { "+p.join(", ")+" }");}
+  if(cfg.u!==undefined)L.push("u: "+(Array.isArray(cfg.u)?"["+cfg.u.join(", ")+"]":cfg.u));
+  if(cfg.poll_interval_s!==undefined)L.push("poll_interval_s: "+cfg.poll_interval_s);
+  return L.join("\n");
+}
+function cxRender(){const cfg=cxBuildConfig();const json=$("#cxFmt").classList.contains("on");$("#cxOut").textContent=json?JSON.stringify(cfg,null,2):cxYaml(cfg);}
+function cxCopy(){const t=$("#cxOut").textContent;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(()=>{$("#cxCopied").textContent="Copied to clipboard.";setTimeout(()=>$("#cxCopied").textContent="",2000);}).catch(()=>{$("#cxCopied").textContent="Select the text above to copy.";});}else{$("#cxCopied").textContent="Select the text above to copy.";}}
+
 function mcard(label,val,sub){return `<div class="mc"><div class="l">${label}</div><div class="v" style="font-size:19px">${val}</div><div class="l" style="margin-top:3px;color:var(--muted)">${sub||""}</div></div>`;}
 async function loadOverview(){
   try{const o=await api("/api/overview");

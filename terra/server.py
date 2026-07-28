@@ -563,6 +563,10 @@ def make_handler(pf: Platform):
                     "authenticated": bool(u and u.get("email") != "local"),
                     "user": u, "trial_days_left": (acc.trial_days_left(u) if u else 0),
                     "trial_hours_left": (acc.trial_hours_left(u) if u else 0)})
+            if p == "/api/integrations":
+                from terra import integrations as _intg
+                return self._send(200, {"systems": _intg.describe_systems(),
+                                        "canonical": _intg.CANONICAL})
             if p in ("/api/status", "/api/config", "/api/state"):
                 if self._user() is None:
                     return self._send(401, {"error": "sign in to continue"})
